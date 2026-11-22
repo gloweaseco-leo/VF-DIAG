@@ -20,14 +20,20 @@ Make a manufacturing/B2B export website useful to **human overseas buyers, searc
 - **Be usable by agents (later):** A browser/AI assistant's ability to locate public product facts and inquiry paths.
 - **Be measurable (later):** Customer-authorized GSC/Bing Webmaster/analytics data, never inferred from crawling alone.
 
-## Proposed OSS evaluation order (NOT YET ACCEPTED AS PRODUCTION)
+## OSS candidates for engineering validation (not production approval)
 
-1. [SiteOne Crawler](https://github.com/janreges/siteone-crawler) (MIT): primary candidate for safe, bounded site audit and native HTML/JSON report.
-2. [Crawl4AI](https://github.com/unclecode/crawl4ai) (Apache-2.0): optional extraction adapter for public product/specification pages, only where SiteOne extraction proves insufficient.
-3. [Unlighthouse](https://github.com/harlan-zw/unlighthouse) (MIT) / [Lighthouse](https://github.com/GoogleChrome/lighthouse) (Apache-2.0): optional laboratory performance audits, not presumed real-world customer experience.
-4. [LibreCrawl](https://github.com/PhialsBasement/LibreCrawl) (MIT): alternative integrated app to benchmark before deciding whether to adopt a full application.
+The buyer-task scope determines which tool runs. **No single crawler is the whole product; no default multi-tool stack.**
 
-Use pinned releases, reproducible builds, license notices, and documented runtime limits. No blind dependency stacking.
+| Candidate | Responsibility |
+| --- | --- |
+| [SiteOne Crawler](https://github.com/janreges/siteone-crawler) · MIT | Bounded technical/SEO/structure baseline; retain native HTML/JSON |
+| [Crawl4AI](https://github.com/unclecode/crawl4ai) · Apache-2.0 | Public product/specification content extraction |
+| [sitespeed.io](https://github.com/sitespeedio/sitespeed.io) · MIT | Representative-page browser performance and loading evidence |
+| [Playwright](https://github.com/microsoft/playwright) · Apache-2.0 | Deterministic buyer journeys and contact/RFQ interaction checks |
+
+Conditional, evidence-driven candidates: [Stagehand](https://github.com/browserbase/stagehand) for unfamiliar browser paths; [Docling](https://github.com/docling-project/docling) **or** [MinerU](https://github.com/opendatalab/MinerU) for important complex technical documents (same-sample comparison required); [Elmo](https://github.com/elmohq/elmo) for bounded, sourced AI-answer samples. None is a prerequisite to the first useful report.
+
+Use pinned versions, reproducible runs, license notices, documented runtime limits, buyer-task evidence, and cost comparison. Do not stack tools without proven incremental value. The authoritative execution and selection gates are in [Owner V4.1 Issue #6](https://github.com/gloweaseco-leo/VF-DIAG/issues/6); product strategy and D0–D4 phases remain in [V1.1](docs/PRODUCT_STRATEGY_V1_1.md).
 
 ## Boundaries
 
