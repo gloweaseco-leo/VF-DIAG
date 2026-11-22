@@ -1,6 +1,6 @@
 # VF-DIAG｜产品、增长与任务架构 V1.1
 
-日期：2026-11-22；状态：Owner 决策底稿，开发中，**未上线**。面向：制造业及B2B跨境出口企业；中文优先、英文内容要能服务真实海外买家。
+日期：2026-11-22；状态：Owner 产品战略基线，工程验证阶段，**未上线**。面向：制造业及B2B跨境出口企业；中文优先、英文内容要能服务真实海外买家。
 
 ## 0. 北极星与商业边界
 
@@ -62,21 +62,32 @@
 
 **数据：** scan_job、website_snapshot、page_observation、raw_tool_artifact、finding、recommendation、presentation。每项 finding 包含来源URL、时间、工具+版本、抓取范围、证据引用、结论级别 OBSERVED/INFERRED/NEEDS_CONFIRMATION/NOT_CHECKED。推荐必须可以回溯到已有事实；任何AI生成判断不可以虚构数据。
 
-**技术：** 有界、可终止的受控Worker（SiteOne优先验证）；Crawl4AI只在复杂产品内容解析确实需要时增加；Unlighthouse/Lighthouse做可选专项；规范化数据适配器；独立可替换的客户展示层。原生工具HTML可做技术附录，但不是产品第一屏。所有外部目标必须得到授权并执行 SSRF/DNS/redirect/网络/robots/速率/任务限额等保护；SiteOne内置克隆、压测、SMTP等高风险/非必要能力默认禁用。任何真实数据、密钥、客户网站授权材料不可提交公开仓库。
+**技术：** 有界、可终止的受控 Worker；按业务任务独立选择技术普查、产品内容提取、性能与采购交互等成熟能力，不设覆盖所有维度的唯一主引擎，不默认叠加全部工具。使用可复核的原生输出与规范化证据数据，客户第一屏由 VF-DIAG 负责，原生报告保留为专业明细。所有外部目标必须得到授权并执行 SSRF/DNS/重定向/浏览器网络出口/robots/速率/任务限额等保护；禁用不必要的镜像克隆、压测、外发等功能。真实数据、密钥、客户网站授权材料不可提交公开仓库。
 
-## 6. 开源组合与验证准则
+## 6. 核心框架选型与验证准则
 
-- [SiteOne Crawler](https://github.com/janreges/siteone-crawler) · MIT · JSON + HTML，**P0候选主引擎，不代表已选型通过**；
-- [LibreCrawl](https://github.com/PhialsBasement/LibreCrawl) · MIT · 完整Web多租户系统，必须用相同的真实授权样本对比它的应用维护与客户适配成本；
-- [Crawl4AI](https://github.com/unclecode/crawl4ai) · Apache-2.0 · AI友好Markdown/结构化提取，条件引入；
-- [Unlighthouse](https://github.com/harlan-zw/unlighthouse) · MIT / [Lighthouse](https://github.com/GoogleChrome/lighthouse) · Apache-2.0 · 专项性能；
-- GEO小众开源可借鉴思路，但不直接作为主生产依赖；稳定性、许可证、输出可复核和后续维护优先于Star数。
+**核心验证候选（独立职责；不是每次诊断全部运行）：**
 
-采用工具前提交版本、许可证、SBOM/主要依赖、稳定性、吞吐/资源、可观测性、安全和业务准确性对比。许可证归属及NOTICE按实际发布形式保留。
+| 框架 | 职责 | 首次诊断的使用原则 |
+| --- | --- | --- |
+| [SiteOne Crawler](https://github.com/janreges/siteone-crawler) · MIT | 网站技术、SEO及结构事实普查；优先验证原生HTML/JSON | 有界全站初筛 |
+| [Crawl4AI](https://github.com/unclecode/crawl4ai) · Apache-2.0 | 产品目录、详情、规格和公开页面信息提取 | 有代表性的关键产品页 |
+| [sitespeed.io](https://github.com/sitespeedio/sitespeed.io) · MIT | 真实浏览器实验室性能、资源瀑布及加载体验 | 选择重要页面，记录测试节点和设备 |
+| [Playwright](https://github.com/microsoft/playwright) · Apache-2.0 | 确定性采购路径、CTA、表单和移动交互检查 | 有界任务；不真实提交询盘 |
+
+**按需竞争候选（有真实业务缺口时才验证）：**
+
+| 框架 | 适用条件 |
+| --- | --- |
+| [Stagehand](https://github.com/browserbase/stagehand) · MIT | 陌生网站结构使固定采购任务难以稳定执行时，与 Playwright 同任务对照 |
+| [Docling](https://github.com/docling-project/docling) · MIT / [MinerU](https://github.com/opendatalab/MinerU) · 自定义许可 | 有重要复杂工业技术文档时同样本竞争，暂不双引擎默认运行 |
+| [Elmo](https://github.com/elmohq/elmo) · MIT | 真实AI回答可合法获取且预算明确时，进行有边界的问题样本观察，不冒充全市场曝光 |
+
+框架贡献以买家任务完成、证据正确性、严重遗漏与误判、成本、安全、版本与许可为标准。**没有增量客户价值就不引入**；不以框架数量或56项全部自动化为目标。采用前提交固定版本、主要依赖/SBOM、原始产物、可复验方法、许可证及所需NOTICE。执行与选型关口以 [Owner V4.1 Issue #6](https://github.com/gloweaseco-leo/VF-DIAG/issues/6) 为准。
 
 ## 7. Cursor开发批次与客户验收
 
-**D0｜真实样本+框架基线**：同一组有授权的工业站样本，核对SiteOne与LibreCrawl的页面覆盖、产品详情识别、输出和报告；先可实用再谈炫技。交付对比表及实际原生报告。未满足数据质量阈值不得直接宣布选型终局。
+**D0｜安全基线+选型验证**：先用受控合成样本验证目标校验、采集边界、停止、原始产物与可复验性，再用授权工业网站实际验证核心客户任务。SiteOne负责技术普查候选、Crawl4AI负责采购内容候选，其重叠部分才同条件对照；专业性能与交互按真实任务选择验证，不预设唯一主引擎。交付真实原生报告、JSON和成本/质量回执；未满足数据质量阈值不得宣布选型终局。
 
 **D1｜最小完整任务**：一次网址与授权 → 有界扫描 → 真实原生HTML报告+JSON → 可追踪结果 → 安全可复测。无需登录、无需先留电话。不对公共互联网放行。
 
