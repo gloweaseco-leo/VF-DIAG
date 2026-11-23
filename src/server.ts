@@ -32,7 +32,7 @@ const jobs = createJobService({
 });
 
 await jobs.recover();
-const server = createHttpServer({ token, jobs, ratePerMinute: funnel ? 60 : 0 });
+const server = createHttpServer({ token, jobs, ratePerMinute: funnel ? 180 : 0 });
 server.listen(port, bind, () => {
   console.log(`vf-diag listening on ${bind}:${port}`);
 });

@@ -94,7 +94,7 @@ docker compose -f docker-compose.yml -f docker-compose.synthetic.yml -f docker-c
 tailscale funnel --bg --https=10000 http://127.0.0.1:8787
 ```
 
-`npm run issue-token` writes a 32-byte random `VFDIAG_SERVICE_TOKEN` into gitignored `.env` and does not print it. Put that same variable on the Vercel Preview project. It is not a VRAE key. `VFDIAG_FUNNEL=1` refuses the placeholder. The funnel overlay also turns on container egress filtering: private, loopback, link-local, metadata and CGNAT destinations are rejected, while Docker DNS and the pinned `172.16.50.0/24` fixture subnet stay reachable. `npm run i2-check` records the public health check, auth rejection, synthetic diagnosis, redirect, subresource, egress, timeout and restart evidence without writing the token.
+`npm run issue-token` writes a 32-byte random `VFDIAG_SERVICE_TOKEN` into gitignored `.env` and does not print it. Put that same variable on the Vercel Preview project. It is not a VRAE key. `VFDIAG_FUNNEL=1` refuses the placeholder and caps one caller at 180 requests a minute, which covers one diagnosis polled every two seconds. The funnel overlay also turns on container egress filtering: private, loopback, link-local, metadata and CGNAT destinations are rejected, while Docker DNS and the pinned `172.16.50.0/24` fixture subnet stay reachable. `npm run i2-check` records the public health check, auth rejection, synthetic diagnosis, redirect, subresource, egress, timeout and restart evidence without writing the token.
 
 ---
 2026-11-22 · VEYFRONT Owner decision · No implementation or public deployment yet.
