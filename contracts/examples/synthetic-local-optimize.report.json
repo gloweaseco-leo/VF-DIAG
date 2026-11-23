@@ -1,0 +1,219 @@
+{
+  "contract_version": "vfdiag.website-diagnosis.v1",
+  "report_schema_version": "1.0",
+  "report_language": "zh",
+  "synthetic": true,
+  "job_ref": "qo3_8qn8eFscQD9OYp7hzA",
+  "engine": "siteone",
+  "engine_version": "2.5.1.20260627",
+  "target": {
+    "input_url": "http://fixture-site:8080/",
+    "host": "fixture-site"
+  },
+  "generated_at": "2026-11-23T01:54:20.910Z",
+  "timezone": "Asia/Shanghai",
+  "retention_days": 7,
+  "headline": {
+    "domain": "fixture-site",
+    "scanned_at": "2026-11-23 01:54:12",
+    "status": "partial",
+    "summary": "采样里有一条已证实的产品链接返回 404。联系页本次可以打开。本次未检测 AI 是否引用该网站。"
+  },
+  "ai_visibility": {
+    "status": "NOT_CHECKED",
+    "statement": "本次未检测 AI 是否引用该网站。"
+  },
+  "coverage": {
+    "scanned_pages": 4,
+    "max_urls": 50,
+    "max_depth": 3,
+    "partial": true,
+    "reason_codes": [
+      "HTML_ONLY_NO_BROWSER"
+    ],
+    "statement": "本结论仅针对已检查页面。采样不足的部分不能当成网站缺陷。"
+  },
+  "advantages": [
+    {
+      "id": "product-reachable",
+      "title": "抽到的产品页可以打开",
+      "claim_level": "OBSERVED",
+      "fact": "本次访问 http://fixture-site:8080/products/valve.html 返回 200。标题为「合成闸阀 Z41H」。",
+      "source": {
+        "source_url": "http://fixture-site:8080/products/valve.html",
+        "target_url": "http://fixture-site:8080/products/valve.html",
+        "source_field": "results",
+        "excerpt": "合成闸阀 Z41H",
+        "observed_at": "2026-11-23 01:54:12",
+        "observed_at_has_timezone": false,
+        "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+      }
+    },
+    {
+      "id": "contact-reachable",
+      "title": "抽到的联系页可以打开",
+      "claim_level": "OBSERVED",
+      "fact": "本次访问 http://fixture-site:8080/contact.html 返回 200。这不能说明表单已提交或邮件已送达。",
+      "source": {
+        "source_url": "http://fixture-site:8080/contact.html",
+        "target_url": "http://fixture-site:8080/contact.html",
+        "source_field": "results",
+        "excerpt": "联系合成样本",
+        "observed_at": "2026-11-23 01:54:12",
+        "observed_at_has_timezone": false,
+        "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+      }
+    }
+  ],
+  "buyer_tasks": {
+    "find": {
+      "question": "海外买家能找到吗？",
+      "status": "OBSERVED",
+      "fact": "本次抓到 3 个返回 200 的地址，同时 http://fixture-site:8080/products/missing.html 返回 404。这不是搜索排名。",
+      "impact": "已经点到这条失效链接的人会中断。没有证据说明搜索或 AI 是否展示了这个网站。",
+      "impact_level": "INFERRED",
+      "suggestion": "先修这条失效链接，再谈收录。",
+      "source": {
+        "source_url": "http://fixture-site:8080/",
+        "target_url": "http://fixture-site:8080/products/missing.html",
+        "source_field": "tables.404.rows",
+        "excerpt": "404",
+        "observed_at": "2026-11-23 01:54:12",
+        "observed_at_has_timezone": false,
+        "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+      }
+    },
+    "understand": {
+      "question": "海外买家能看懂吗？",
+      "status": "OBSERVED",
+      "fact": "产品页 http://fixture-site:8080/products/valve.html 可以打开。读到的文字是「公称压力 1.6MPa。这是合成规格文字，不是真实产品。」。规格是否完整，本次没有核验。",
+      "impact": "采购员至少能看到这段文字。看不到的型号仍然未知。",
+      "impact_level": "INFERRED",
+      "suggestion": "用原文核对名称和关键规格。图片里的参数需要人工确认。",
+      "source": {
+        "source_url": "http://fixture-site:8080/products/valve.html",
+        "target_url": "http://fixture-site:8080/products/valve.html",
+        "source_field": "tables.seo.rows",
+        "excerpt": "公称压力 1.6MPa。这是合成规格文字，不是真实产品。",
+        "observed_at": "2026-11-23 01:54:12",
+        "observed_at_has_timezone": false,
+        "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+      }
+    },
+    "contact": {
+      "question": "海外买家能联系吗？",
+      "status": "OBSERVED",
+      "fact": "联系页 http://fixture-site:8080/contact.html 返回 200。外链里没有看到邮箱、电话、WhatsApp 或微信。页面能打开不等于表单可以提交。",
+      "impact": "采购员可能找得到这个页面。是否有人回复，本次没有验证。",
+      "impact_level": "INFERRED",
+      "suggestion": "由销售确认这个入口是否仍在使用。",
+      "source": {
+        "source_url": "http://fixture-site:8080/contact.html",
+        "target_url": "http://fixture-site:8080/contact.html",
+        "source_field": "results",
+        "excerpt": "联系合成样本",
+        "observed_at": "2026-11-23 01:54:12",
+        "observed_at_has_timezone": false,
+        "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+      }
+    }
+  },
+  "product_observation": {
+    "status": "OBSERVED",
+    "url": "http://fixture-site:8080/products/valve.html",
+    "title": "合成闸阀 Z41H",
+    "excerpt": "公称压力 1.6MPa。这是合成规格文字，不是真实产品。",
+    "http_status": "200",
+    "specs_status": "NEEDS_CONFIRMATION",
+    "specs_note": "只引用了页面简介原文，没有核验型号、压力、材质或其他参数是否齐全。",
+    "source": {
+      "source_url": "http://fixture-site:8080/products/valve.html",
+      "target_url": "http://fixture-site:8080/products/valve.html",
+      "source_field": "tables.seo.rows",
+      "excerpt": "公称压力 1.6MPa。这是合成规格文字，不是真实产品。",
+      "observed_at": "2026-11-23 01:54:12",
+      "observed_at_has_timezone": false,
+      "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+    }
+  },
+  "contact_observation": {
+    "status": "OBSERVED",
+    "url": "http://fixture-site:8080/contact.html",
+    "title": "联系合成样本",
+    "http_status": "200",
+    "source": {
+      "source_url": "http://fixture-site:8080/contact.html",
+      "target_url": "http://fixture-site:8080/contact.html",
+      "source_field": "results",
+      "excerpt": "联系合成样本",
+      "observed_at": "2026-11-23 01:54:12",
+      "observed_at_has_timezone": false,
+      "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+    }
+  },
+  "language_observation": {
+    "status": "OBSERVED",
+    "sampled_pages": 3,
+    "cjk_chars": 83,
+    "latin_letters": 13,
+    "fact": "已检查页面的标题和简介里，汉字 83 个，拉丁字母 13 个。",
+    "inference": "如果正文同样以中文为主，海外采购员可能无法直接阅读。",
+    "inference_level": "INFERRED",
+    "source": {
+      "source_url": "http://fixture-site:8080/",
+      "target_url": null,
+      "source_field": "tables.seo.rows",
+      "excerpt": "合成样本阀门厂 这是 VF-DIAG 本地合成样本，不是真实企业。工业阀门。 合成样本阀门厂 联系合成样本 合成联系页，不会发送真实询盘。 联系合成样本 合成闸阀 Z41H 公称压力 1.6MPa。这是合成规格文字，不是真实产品。 合成闸阀 Z41H",
+      "observed_at": "2026-11-23 01:54:12",
+      "observed_at_has_timezone": false,
+      "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+    }
+  },
+  "contact_channel_observation": {
+    "status": "NEEDS_CONFIRMATION",
+    "channels": [],
+    "statement": "只发现联系页面，未在外链中看到邮箱、电话、WhatsApp 或微信。页面返回 200 不能证明表单可以提交。",
+    "source": {
+      "source_url": "http://fixture-site:8080/contact.html",
+      "target_url": null,
+      "source_field": "tables.external-urls.rows",
+      "excerpt": null,
+      "observed_at": "2026-11-23 01:54:12",
+      "observed_at_has_timezone": false,
+      "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+    }
+  },
+  "priorities": [
+    {
+      "id": "product-404-1",
+      "title": "一条产品链接打不开",
+      "claim_level": "OBSERVED",
+      "fact": "本次从 http://fixture-site:8080/ 发现的链接 http://fixture-site:8080/products/missing.html 返回 404。",
+      "impact": "通过这条链接继续看产品的采购员，可能到不了详情页。",
+      "impact_level": "INFERRED",
+      "suggestion": "核对这条链接和对应产品页，修复后用同范围再扫一次。",
+      "needs_confirmation": "该链接是不是还在用的主产品入口，需要网站管理者确认。",
+      "buyer_step": "understand",
+      "source": {
+        "source_url": "http://fixture-site:8080/",
+        "target_url": "http://fixture-site:8080/products/missing.html",
+        "source_field": "tables.404.rows",
+        "excerpt": "404",
+        "observed_at": "2026-11-23 01:54:12",
+        "observed_at_has_timezone": false,
+        "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+      }
+    }
+  ],
+  "recommended_next_step": "LOCAL_OPTIMIZE",
+  "next_step_reason": "已证实的问题是单个链接返回 404，可以单独修复后复查。技术分和标题层级没有参与这个判断。",
+  "primary_action": {
+    "label": "查看这条证据",
+    "kind": "evidence"
+  },
+  "share_blurb": "网站 fixture-site。本次是授权声明后的公开页面扫描，不是排名，也未检测 AI 是否引用。优先事项：本次从 http://fixture-site:8080/ 发现的链接 http://fixture-site:8080/products/missing.html 返回 404。",
+  "artifact_kinds": [
+    "html",
+    "json"
+  ]
+}

@@ -26,7 +26,7 @@
 | Rebuild项目表单、企业微信、实际线索 | **VEYFRONT现有设施** | 网址提交或查看报告不等于销售线索，只有客户主动咨询才进入已有渠道 |
 | 专业工业采购深度诊断 | **VRAE（独立）** | 本轮不接、不共享数据库，不自动把SiteOne finding升级为VRAE finding |
 
-**部署决策原则：** VEYFRONT=现有 Vercel Next/短请求；VF-DIAG=可稳定运行的独立Worker和受控持久化（M0可在受限本地环境验证），服务端互通走固定origin+独立身份（受控网络或HTTPS双向/绑定鉴权）；不复用VRAE的密钥、PG、Worker或受信会话。具体云资源在真实I2联调前确认，不为M0抢先建集群。
+**部署决策原则：** VEYFRONT=现有 Vercel Next/短请求；VF-DIAG=可稳定运行的独立Worker和受控持久化（M0可在受限本地环境验证），服务端互通走固定origin+独立身份（受控网络或HTTPS双向/绑定鉴权）；不复用VRAE的密钥、PG、Worker或受信会话。具体云资源在真实 I2 联调前确认，不为 M0 抢先建集群。M0 Worker 只在本地 Docker 里运行，见仓库 `Dockerfile` 与 `docker-compose.yml`。
 
 ## 3. PR #36/#37 选择性复用明细
 
@@ -54,7 +54,7 @@
 - 用户同意包括只读公开采集和**若实际使用模型时**的数据处理、第三方模型提供方及数据范围。M0可不启用模型；不能因 SiteOne 提供AI按钮就自动调用付费模型。
 - 结果链接、Analytics/日志不能包含授权令牌、原始页面正文、完整请求参数或客户身份信息。
 
-## 5. 两仓最小接口契约（设计合同，尚未实现）
+## 5. 两仓最小接口契约（字段已固定，本地 Docker 骨架已可运行，尚未联调上线）
 
 统一版本：`vfdiag.website-diagnosis.v1`，后端明确 `engine=siteone`、`engine_version`、`report_schema_version`。**客户浏览器永不直接请求VF-DIAG。**
 
@@ -71,33 +71,27 @@
 BFF必须执行同源/CSRF、用户会话、最小频率限制、脱敏错误映射及禁缓存。成功回读/失败处理不可依赖浏览器带的后端origin、任意文件路径、服务token。
 
 ### VF-DIAG 内部服务
-与 BFF 一一对应的最小 `POST/GET /v1/jobs`、`POST /v1/jobs/{job_ref}/cancel`、`GET /v1/jobs/{job_ref}/report`、`GET /v1/jobs/{job_ref}/artifacts/{kind}`。所有内部调用使用服务端独立鉴权，按固定目标、签名/身份与额度约束；具体HTTP字段由首个 Draft PR 固定并以兼容性测试验收。
+与 BFF 一一对应的最小 `POST/GET /v1/jobs`、`POST /v1/jobs/{job_ref}/cancel`、`GET /v1/jobs/{job_ref}/report`、`GET /v1/jobs/{job_ref}/artifacts/{kind}`。浏览器不调用这些路由。调用方带 `Authorization: Bearer`，令牌只放在 VEYFRONT 服务端。kind 只允许 `html` 和 `json`，响应是附件，不在页面里执行 HTML。
 
-**创建请求最小字段**：`contract_version`、`url`、`language=zh|en`、`authorization={version,accepted_at,accepted,text_hash}`、`idempotency_key`。服务端仍必须校验/约束目标，不信任前端授权勾选本身能防止任意人恶意扫描。
+**创建请求字段**：`contract_version=vfdiag.website-diagnosis.v1`、`url`、`language=zh|en`、`authorization={version:2026-11-22, accepted:true, accepted_at, text_hash}`、`idempotency_key`。`text_hash` 是授权声明原文的 SHA-256。`language=en` 可以提交，但 `report_language` 固定为 `zh`。同一幂等键加同一请求返回已有任务；同一幂等键换了网址返回 `409 IDEMPOTENCY_CONFLICT`。M0 同时只接受一个未结束任务，多余请求返回 `429 JOB_CAPACITY`。
 
-**任务状态集合**：`queued | validating | running | summarizing | complete | partial | failed | cancelled | expired`。返回 `job_ref,state,updated_at,scope,checked_pages,remaining_unknown,reason_code,poll_after_seconds,report_available`；没有真实完成分母就只显示阶段和已访问页数，**不显示虚构百分比**。429/重试、超时、取消、Worker重启、报告过期须有稳定错误码。
+**任务状态**：`queued | validating | running | summarizing | complete | partial | failed | cancelled | expired`。状态体包含 `job_ref,state,updated_at,expires_at,scope,checked_pages,remaining_unknown,reason_code,reason,poll_after_seconds,report_available,target_host,synthetic,report_language`。`remaining_unknown` 在 M0 恒为 true，不返回百分比。工件和报告保留 7 天。
 
-**客户报告最小对象（由VF-DIAG生成，VEYFRONT只展示）**：
-```json
-{
-  "contract_version": "vfdiag.website-diagnosis.v1",
-  "report_schema_version": "1.0",
-  "job_ref": "<opaque>",
-  "engine": "siteone",
-  "engine_version": "2.5.1",
-  "target": "example.com",
-  "coverage": {"scanned_pages": 0, "partial": true, "reason_codes": []},
-  "product_observation": {"status": "NOT_CHECKED", "source_refs": []},
-  "contact_observation": {"status": "NOT_CHECKED", "source_refs": []},
-  "findings": [],
-  "recommendations": [],
-  "recommended_next_step": "CONFIRM_FIRST",
-  "artifact_kinds": []
-}
-```
-上例**只是类型/缺省合同示意，不是客户扫描数据**。正式数据需要每一条证据的`source_url,source_field_or_excerpt,observed_at,scope,source_refs`及`OBSERVED/INFERRED/NEEDS_CONFIRMATION/NOT_CHECKED`标注；推荐值限定`KEEP|SELF_FIX|LOCAL_OPTIMIZE|SPECIAL_UPGRADE|DISCUSS_REBUILD|CONFIRM_FIRST`。无证据不得从 SiteOne 质量分推出“重建必要”。
+**客户报告以 [contracts/vfdiag.website-diagnosis.v1.schema.json](../contracts/vfdiag.website-diagnosis.v1.schema.json) 为准。** VEYFRONT 按这个投影渲染，不读取 SiteOne 原始 JSON 再判断缺陷。投影包含优势、三张买家任务卡、产品观察、联系观察、语言观察、联系方式类型、最多三条优先事项、分叉和可复制口述。技术分、缺 H1 或单个 404 不会输出 `DISCUSS_REBUILD` 或 `SELF_FIX`。无证据时优先事项可以为 0 条。
 
-**契约约束**：BFF 只消费VF-DIAG的`report_schema_version`及发布投影，不能直接读取SiteOne私有全量JSON再自己判缺陷；未知版本明确错误并关闭报告展示；结构化报告与原始工件均可复验、有保存期限。
+合成样本在 `contracts/examples/`，都不是已授权客户实测：
+
+| 文件 | 结果 |
+| --- | --- |
+| `synthetic-local-optimize.report.json` | 一次真实合成扫描。产品页和联系页返回 200，另有一条已证实 404。下一步是先修这一处。 |
+| `synthetic-keep.report.json` | 产品页和联系页都返回 200，缺 H1、技术分为 0 也不改变结论。下一步是保持现站。 |
+| `synthetic-confirm-first.report.json` | 只打开了首页，产品和联系都未核实。下一步是先看本次范围，不能当成网站缺陷。 |
+| `synthetic-special-upgrade.report.json` | 产品路径和联系路径都有已证实 404。下一步是讨论升级，不是重建。 |
+| `synthetic-engine-failed.status.json` | 扫描没有留下 JSON。任务失败，不发布客户报告。 |
+
+稳定错误码包括：`TARGET_URL_INVALID`、`TARGET_SCHEME_REJECTED`、`TARGET_HOST_REJECTED`、`TARGET_PRIVATE_ADDRESS`、`TARGET_DNS_FAILED`、`TARGET_PORT_REJECTED`、`AUTHORIZATION_REQUIRED`、`AUTHORIZATION_TEXT_MISMATCH`、`IDEMPOTENCY_CONFLICT`、`JOB_CAPACITY`、`JOB_NOT_FOUND`、`REPORT_NOT_READY`、`ARTIFACT_NOT_FOUND`、`ENGINE_BINARY_MISSING`、`ENGINE_VERSION_MISMATCH`、`ENGINE_TIMEOUT`、`ENGINE_FAILED`、`UNSAFE_OFFHOST`、`WORKER_RESTARTED`、`EXPIRED`。
+
+**契约约束**：BFF 只消费上述投影。未知 `report_schema_version` 关闭报告展示。扫描完成但产品或联系仍未核实的，任务可以是 `complete`，报告 `headline.status` 为 `partial`。
 
 ## 6. 原生HTML、客户隐私、运营与咨询
 

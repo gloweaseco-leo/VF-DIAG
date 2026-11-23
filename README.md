@@ -64,5 +64,22 @@ Explicit website owner/authorized operator permission; controlled target/redirec
 
 See the repository Issues for actionable Cursor work packages. All customer examples must be derived from real authorized scans or explicitly marked synthetic. Never claim production readiness until verified.
 
+## Local worker
+
+M0 runs in local Docker, not as a bare process on the developer machine. The image pins SiteOne Crawler v2.5.1 (MIT) by tarball SHA-256. The API listens inside the container and is published only on `127.0.0.1:8787`.
+
+```bash
+docker compose up --build
+```
+
+Synthetic crawl, including the local fixture site:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.synthetic.yml up --build
+docker compose -f docker-compose.yml -f docker-compose.synthetic.yml exec worker node src/m0-check.ts
+```
+
+The default worker rejects private and loopback targets. `fixture-site` is allowed only when `docker-compose.synthetic.yml` sets `VFDIAG_SYNTHETIC_HOSTS`. Customer reports follow `contracts/vfdiag.website-diagnosis.v1.schema.json`. Unit tests do not need Docker: `npm test`.
+
 ---
 2026-11-22 · VEYFRONT Owner decision · No implementation or public deployment yet.
