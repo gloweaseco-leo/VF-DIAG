@@ -125,8 +125,8 @@ BFF必须执行同源/CSRF、用户会话、最小频率限制、脱敏错误映
 
 ## 8. Cursor分工与禁止扩大范围
 
-- **VF-DIAG Issue #2**：承担M0/M1 SiteOne Worker、内部任务/报告API、证据映射、保护与工件。对本合同出一个Draft PR，不改VEYFRONT。
-- **VEYFRONT独立Issue**：承担从main选择性复用PR#36/#37 UI、同源BFF、客户会话与访问、报告/证据、原有咨询路径、SEO与移动端回归。对本合同出一个Draft PR，不合并/关闭#37。
+- **[VF-DIAG Issue #2](https://github.com/gloweaseco-leo/VF-DIAG/issues/2)**：承担M0/M1 SiteOne Worker、内部任务/报告API、证据映射、保护与工件。对本合同出一个Draft PR，不改VEYFRONT。
+- **[VEYFRONT Issue #39](https://github.com/gloweaseco-leo/VEYFRONT/issues/39)**：承担从main选择性复用PR#36/#37 UI、同源BFF、客户会话与访问、报告/证据、原有咨询路径、SEO与移动端回归。对本合同出一个Draft PR，不合并/关闭#37。
 - 两边可以各自用受控合成Fixture开发，但**联调GO必须基于真实服务和已授权网站**；不得因为缺签发/授权材料而把某次合成测试称作真实客户验收。
 - **不新增**独立前端仓库、共享生产数据库、完整多引擎诊断平台、VRAE兼容层、CRM、复杂账号系统、虚假进度或自动销售转化。
 
