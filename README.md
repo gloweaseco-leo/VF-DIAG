@@ -20,20 +20,17 @@ Make a manufacturing/B2B export website useful to **human overseas buyers, searc
 - **Be usable by agents (later):** A browser/AI assistant's ability to locate public product facts and inquiry paths.
 - **Be measurable (later):** Customer-authorized GSC/Bing Webmaster/analytics data, never inferred from crawling alone.
 
-## OSS candidates for engineering validation (not production approval)
+## Approved MVP: SiteOne-first
 
-The buyer-task scope determines which tool runs. **No single crawler is the whole product; no default multi-tool stack.**
+**MVP implementation is now limited to SiteOne Crawler v2.5.1 (pinned release) and a thin VF-DIAG job/report interface.** Do not build a multi-framework product for the initial customer trial.
 
-| Candidate | Responsibility |
-| --- | --- |
-| [SiteOne Crawler](https://github.com/janreges/siteone-crawler) · MIT | Bounded technical/SEO/structure baseline; retain native HTML/JSON |
-| [Crawl4AI](https://github.com/unclecode/crawl4ai) · Apache-2.0 | Public product/specification content extraction |
-| [sitespeed.io](https://github.com/sitespeedio/sitespeed.io) · MIT | Representative-page browser performance and loading evidence |
-| [Playwright](https://github.com/microsoft/playwright) · Apache-2.0 | Deterministic buyer journeys and contact/RFQ interaction checks |
+- Real input: HTTPS URL + one explicit authorization attestation.
+- Real output: bounded SiteOne scan, native HTML + JSON, Chinese mobile-first summary, evidence and next steps, optional user-initiated VEYFRONT consultation.
+- Real limits: no fake progress, no guaranteed search/AI referrals, no unverified negative claims or fabricated conversions; SiteOne quality score is technical, **not a rebuild verdict**.
+- Source/version warning: v2.5.1 tag documents HTML/JSON, browser screenshots and optional AI technical summary. Newer main-branch-only features such as AI extraction/IA/GEO report flags and NDJSON/stdin controls are **not MVP dependencies** unless independently verified and version-pinned.
+- Future framework research is retained as historical context, **not an implementation instruction**. Add another engine only after a documented MVP customer-value gap and separate Owner decision.
 
-Conditional, evidence-driven candidates: [Stagehand](https://github.com/browserbase/stagehand) for unfamiliar browser paths; [Docling](https://github.com/docling-project/docling) **or** [MinerU](https://github.com/opendatalab/MinerU) for important complex technical documents (same-sample comparison required); [Elmo](https://github.com/elmohq/elmo) for bounded, sourced AI-answer samples. None is a prerequisite to the first useful report.
-
-Use pinned versions, reproducible runs, license notices, documented runtime limits, buyer-task evidence, and cost comparison. Do not stack tools without proven incremental value. The authoritative execution and selection gates are in [Owner V4.1 Issue #6](https://github.com/gloweaseco-leo/VF-DIAG/issues/6); product strategy and D0–D4 phases remain in [V1.1](docs/PRODUCT_STRATEGY_V1_1.md).
+**Cursor must follow two current executable documents:** [MVP Product & Acceptance V1.0](docs/MVP_PRODUCT_ACCEPTANCE_V1_0.md) and [MVP Customer Report & UX V1.0](docs/MVP_CUSTOMER_REPORT_UI_V1_0.md). [Product Strategy V1.1](docs/PRODUCT_STRATEGY_V1_1.md) remains the long-term business context, not a requirement to implement all 56 indicators in MVP.
 
 ## Boundaries
 
@@ -61,7 +58,7 @@ Explicit website owner/authorized operator permission; controlled target/redirec
 
 ## Roadmap
 
-**D0** source/license/safety and sample-site suitability test → **D1** reliable bounded scan + native report + JSON → **D2** buyer-task findings and GEO readiness → **D3** VEYFRONT customer-facing report experience → **D4** verified customer pilot, business acceptance and independent release decision.
+**M0** synthetic safety baseline + real SiteOne v2.5.1 HTML/JSON → **M1** authorized URL + Chinese customer report + consultation choice → **M2** only after real feedback: bounded product extraction/screenshot improvements. Broader D0–D4 / 56-indicator platform roadmap is deferred, not a blocker for MVP.
 
 See the repository Issues for actionable Cursor work packages. All customer examples must be derived from real authorized scans or explicitly marked synthetic. Never claim production readiness until verified.
 
