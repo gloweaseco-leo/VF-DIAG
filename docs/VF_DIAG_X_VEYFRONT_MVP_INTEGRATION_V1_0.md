@@ -26,7 +26,7 @@
 | Rebuild项目表单、企业微信、实际线索 | **VEYFRONT现有设施** | 网址提交或查看报告不等于销售线索，只有客户主动咨询才进入已有渠道 |
 | 专业工业采购深度诊断 | **VRAE（独立）** | 本轮不接、不共享数据库，不自动把SiteOne finding升级为VRAE finding |
 
-**部署决策原则：** VEYFRONT=现有 Vercel Next/短请求；VF-DIAG=可稳定运行的独立Worker和受控持久化（M0可在受限本地环境验证），服务端互通走固定origin+独立身份（受控网络或HTTPS双向/绑定鉴权）；不复用VRAE的密钥、PG、Worker或受信会话。具体云资源在真实 I2 联调前确认，不为 M0 抢先建集群。M0 Worker 只在本地 Docker 里运行，见仓库 `Dockerfile` 与 `docker-compose.yml`。
+**部署决策原则：** VEYFRONT=现有 Vercel Next/短请求；VF-DIAG=可稳定运行的独立Worker和受控持久化（M0可在受限本地环境验证），服务端互通走固定origin+独立身份（受控网络或HTTPS绑定鉴权）；不复用VRAE的密钥、PG、Worker或受信会话。当前给 Vercel Preview 的受控入口是本机 Tailscale Funnel：HTTPS 转到 `127.0.0.1:8787`，不把 8787 公布到局域网。本机 443 和 8443 已被其他服务占用，VF-DIAG 使用 Funnel 端口 10000。凭据是独立的 `VFDIAG_SERVICE_TOKEN`，只放在 gitignore 的 `.env` 和 Vercel Preview 环境变量里。回执见 `contracts/examples/i2-funnel-receipt.json`。M0 Worker 只在本地 Docker 里运行，见仓库 `Dockerfile`、`docker-compose.yml` 与 `docker-compose.funnel.yml`。
 
 ## 3. PR #36/#37 选择性复用明细
 

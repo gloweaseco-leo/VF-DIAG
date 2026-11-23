@@ -10,6 +10,8 @@
     "test": "node --experimental-strip-types --test --test-reporter=spec test/*.ts",
     "fixture-site": "node src/fixture-site.ts",
     "m0-check": "node src/m0-check.ts",
-    "local-bff": "node src/local-bff-check.ts"
+    "local-bff": "node src/local-bff-check.ts",
+    "issue-token": "node src/issue-service-token.ts",
+    "i2-check": "node src/i2-check.ts"
   }
 }

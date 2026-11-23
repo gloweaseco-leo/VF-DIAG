@@ -1,0 +1,9 @@
+services:
+  worker:
+    environment:
+      VFDIAG_SERVICE_TOKEN: ${VFDIAG_SERVICE_TOKEN:?set VFDIAG_SERVICE_TOKEN in .env}
+      VFDIAG_FUNNEL: "1"
+      VFDIAG_EGRESS_FILTER: "1"
+      VFDIAG_EGRESS_ALLOW: "172.16.50.0/24"
+    cap_add:
+      - NET_ADMIN

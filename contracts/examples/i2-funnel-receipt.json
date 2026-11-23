@@ -1,0 +1,147 @@
+{
+  "kind": "vfdiag.i2-funnel-receipt",
+  "checked_at": "2026-11-23T08:06:02.611Z",
+  "https_origin": "https://dong.tail27555e.ts.net:10000",
+  "credential": {
+    "name": "VFDIAG_SERVICE_TOKEN",
+    "location": "gitignored .env on the worker host, and the Vercel Preview environment variable of the same name",
+    "printed": false,
+    "vrae_key_reused": false,
+    "placeholder_accepted": false
+  },
+  "publish": "Tailscale Funnel HTTPS to 127.0.0.1:8787. Host port 8787 is not published on 0.0.0.0. Existing Funnel ports 443 and 8443 were left in place.",
+  "notes": [
+    "The crawler user cannot open metadata, loopback, RFC1918, CGNAT, or IPv4-mapped addresses. Docker DNS at 127.0.0.11 stays open because Docker rewrites port 53 to a high port on that address. The in-container healthcheck runs as root and may open only 127.0.0.1:8787; the crawler user cannot.",
+    "A redirect to 169.254.169.254 was recorded as an off-host fetch, the report was refused, and no metadata body was stored. url_hits counts that URL string in the failed job output.",
+    "The subresource page was published because image fetches are disabled and no off-host URL was requested. This is not a customer GO."
+  ],
+  "checks": [
+    {
+      "name": "health",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "engine_version": "2.5.1"
+      }
+    },
+    {
+      "name": "missing_token",
+      "ok": true,
+      "detail": {
+        "status": 401,
+        "code": "UNAUTHORIZED"
+      }
+    },
+    {
+      "name": "wrong_token",
+      "ok": true,
+      "detail": {
+        "status": 401
+      }
+    },
+    {
+      "name": "egress_blocks_private",
+      "ok": true,
+      "detail": {
+        "metadata": {
+          "reached": false,
+          "error": "ECONNREFUSED",
+          "ms": 62
+        },
+        "loopback": {
+          "reached": false,
+          "error": "ECONNREFUSED",
+          "ms": 2
+        },
+        "rfc1918": {
+          "reached": false,
+          "error": "ECONNREFUSED",
+          "ms": 1
+        },
+        "cgnat": {
+          "reached": false,
+          "error": "ECONNREFUSED",
+          "ms": 1
+        },
+        "mapped": {
+          "reached": false,
+          "error": "ECONNREFUSED",
+          "ms": 9
+        },
+        "fixture": {
+          "reached": true,
+          "status": 200,
+          "ms": 18
+        }
+      }
+    },
+    {
+      "name": "egress_allows_fixture",
+      "ok": true,
+      "detail": {
+        "reached": true,
+        "status": 200,
+        "ms": 18
+      }
+    },
+    {
+      "name": "synthetic_diagnosis",
+      "ok": true,
+      "detail": {
+        "create_status": 202,
+        "state": "complete",
+        "report_available": true
+      }
+    },
+    {
+      "name": "redirect_does_not_publish_metadata",
+      "ok": true,
+      "detail": {
+        "state": "failed",
+        "reason_code": "UNSAFE_OFFHOST",
+        "report_status": 409,
+        "report_available": false
+      }
+    },
+    {
+      "name": "subresource_stays_on_host",
+      "ok": true,
+      "detail": {
+        "state": "complete",
+        "reason_code": null,
+        "report_available": true
+      }
+    },
+    {
+      "name": "stored_files_have_no_metadata_body",
+      "ok": true,
+      "detail": {
+        "url_hits": 2,
+        "metadata_body_hits": 0
+      }
+    },
+    {
+      "name": "dns_mixed_answer_rejected",
+      "ok": true,
+      "detail": {
+        "code": "TARGET_PRIVATE_ADDRESS"
+      }
+    },
+    {
+      "name": "wall_clock_kill",
+      "ok": true,
+      "detail": {
+        "exit": 0
+      }
+    },
+    {
+      "name": "restart_recovery",
+      "ok": true,
+      "detail": {
+        "health_after_restart": 200,
+        "state": "failed",
+        "reason_code": "WORKER_RESTARTED"
+      }
+    }
+  ]
+}

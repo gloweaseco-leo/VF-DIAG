@@ -11,6 +11,8 @@ services:
       VFDIAG_SYNTHETIC_HOSTS: ""
     volumes:
       - vfdiag-data:/var/lib/vfdiag
+    networks:
+      - vfdiag
     healthcheck:
       test:
         [
@@ -26,3 +28,9 @@ services:
 
 volumes:
   vfdiag-data:
+
+networks:
+  vfdiag:
+    ipam:
+      config:
+        - subnet: 172.16.50.0/24

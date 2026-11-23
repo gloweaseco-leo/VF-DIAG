@@ -7,11 +7,17 @@ export function authorizationTextHash(): string {
 
 export const LOCAL_DEV_TOKEN = "local-docker-dev-token-change-me";
 
-export function assertServiceToken(token: string | undefined, options?: { localOnly?: boolean }): string {
+export function assertServiceToken(token: string | undefined, options?: { localOnly?: boolean; funnel?: boolean }): string {
   if (!token || token.trim().length < 16) {
     throw new Error("VFDIAG_SERVICE_TOKEN 至少需要 16 个字符。");
   }
   const value = token.trim();
+  if (options?.funnel === true) {
+    if (value === LOCAL_DEV_TOKEN || value.length < 32 || new Set(value).size < 8) {
+      throw new Error("Funnel 入口必须使用至少 32 位、不可预测的独立服务凭据，不能使用本地占位口令。");
+    }
+    return value;
+  }
   if (value === LOCAL_DEV_TOKEN && options?.localOnly !== true) {
     throw new Error("默认本地口令只能在 VFDIAG_LOCAL_ONLY=1 时使用。远程暴露前必须换成随机凭据。");
   }

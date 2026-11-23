@@ -23,6 +23,14 @@ RUN apt-get update \
     > /usr/local/bin/vfdiag-entrypoint \
   && chmod 755 /usr/local/bin/vfdiag-entrypoint
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends iptables \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY docker/vfdiag-egress.sh /usr/local/bin/vfdiag-egress
+COPY docker/entrypoint.sh /usr/local/bin/vfdiag-entrypoint
+RUN chmod 755 /usr/local/bin/vfdiag-egress /usr/local/bin/vfdiag-entrypoint
+
 WORKDIR /app
 COPY package.json ./
 COPY contracts ./contracts

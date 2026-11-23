@@ -52,6 +52,10 @@ test("the local placeholder token is refused for a remote process", async () => 
   assert.throws(() => assertServiceToken(LOCAL_DEV_TOKEN), /随机凭据/);
   assert.equal(assertServiceToken(LOCAL_DEV_TOKEN, { localOnly: true }), LOCAL_DEV_TOKEN);
   assert.equal(assertServiceToken("remote-random-token-value"), "remote-random-token-value");
+  assert.throws(() => assertServiceToken(LOCAL_DEV_TOKEN, { localOnly: true, funnel: true }), /Funnel/);
+  assert.throws(() => assertServiceToken("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", { funnel: true }), /Funnel/);
+  const issued = "vfdiag-funnel-token-2026-11-23-independent";
+  assert.equal(assertServiceToken(issued, { funnel: true }), issued);
 });
 
 async function waitComplete(jobs: ReturnType<typeof createJobService>, jobRef: string) {

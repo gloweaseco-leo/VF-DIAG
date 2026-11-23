@@ -5,8 +5,10 @@ import { createHttpServer } from "./http/server.ts";
 import { createJobService } from "./jobs/service.ts";
 import { runSiteOne } from "./siteone/run.ts";
 
+const funnel = process.env.VFDIAG_FUNNEL === "1";
 const token = assertServiceToken(process.env.VFDIAG_SERVICE_TOKEN, {
   localOnly: process.env.VFDIAG_LOCAL_ONLY === "1",
+  funnel,
 });
 const port = Number(process.env.VFDIAG_PORT ?? 8787);
 const bind = process.env.VFDIAG_BIND ?? "127.0.0.1";
@@ -30,7 +32,7 @@ const jobs = createJobService({
 });
 
 await jobs.recover();
-const server = createHttpServer({ token, jobs });
+const server = createHttpServer({ token, jobs, ratePerMinute: funnel ? 60 : 0 });
 server.listen(port, bind, () => {
   console.log(`vf-diag listening on ${bind}:${port}`);
 });
