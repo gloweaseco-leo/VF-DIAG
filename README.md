@@ -77,7 +77,10 @@ Synthetic crawl, including the local fixture site:
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.synthetic.yml up --build
 docker compose -f docker-compose.yml -f docker-compose.synthetic.yml exec worker node src/m0-check.ts
+npm run local-bff
 ```
+
+`npm run local-bff` calls the published `127.0.0.1:8787` from the host. It checks auth rejection, a private target, one-at-a-time capacity, a synthetic scan, report and attachment downloads, idempotency, and cancel. It does not scan a real site.
 
 The default worker rejects private and loopback targets. `fixture-site` is allowed only when `docker-compose.synthetic.yml` sets `VFDIAG_SYNTHETIC_HOSTS`. Customer reports follow `contracts/vfdiag.website-diagnosis.v1.schema.json`. Unit tests do not need Docker: `npm test`.
 

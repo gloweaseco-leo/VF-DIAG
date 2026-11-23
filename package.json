@@ -9,6 +9,7 @@
     "start": "node src/server.ts",
     "test": "node --experimental-strip-types --test --test-reporter=spec test/*.ts",
     "fixture-site": "node src/fixture-site.ts",
-    "m0-check": "node src/m0-check.ts"
+    "m0-check": "node src/m0-check.ts",
+    "local-bff": "node src/local-bff-check.ts"
   }
 }

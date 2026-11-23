@@ -1,0 +1,28 @@
+{
+  "command": "npm run local-bff",
+  "target": "http://127.0.0.1:8787",
+  "site": "http://fixture-site:8080/",
+  "exit_code": 0,
+  "ran_at": "2026-11-23T04:10:00Z",
+  "language_sent": "en",
+  "report_language": "zh",
+  "job_state": "complete",
+  "headline_status": "partial",
+  "synthetic": true,
+  "product": "OBSERVED",
+  "contact": "OBSERVED",
+  "next": "LOCAL_OPTIMIZE",
+  "checks": [
+    "GET /v1/health without a token returned 200",
+    "POST /v1/jobs without a token returned 401",
+    "POST /v1/jobs with the wrong token returned 401",
+    "https://127.0.0.1/ finished failed with TARGET_PRIVATE_ADDRESS",
+    "a second create while the scan was active returned 429 JOB_CAPACITY",
+    "the same idempotency key and body returned 200 and the same job",
+    "the same idempotency key and a different URL returned 409",
+    "report download returned 200 and the share text did not contain the job ref",
+    "html and json artifacts returned 200 as attachments with nosniff",
+    "cancel finished cancelled and the report then returned 409"
+  ],
+  "note": "本机 BFF 视角的联调。调用方是宿主机，Worker 在 Docker 里。没有改 VEYFRONT，没有扫描真实客户站，不是客户实测 GO。"
+}
