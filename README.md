@@ -30,7 +30,9 @@ Make a manufacturing/B2B export website useful to **human overseas buyers, searc
 - Source/version warning: v2.5.1 tag documents HTML/JSON, browser screenshots and optional AI technical summary. Newer main-branch-only features such as AI extraction/IA/GEO report flags and NDJSON/stdin controls are **not MVP dependencies** unless independently verified and version-pinned.
 - Future framework research is retained as historical context, **not an implementation instruction**. Add another engine only after a documented MVP customer-value gap and separate Owner decision.
 
-**Cursor must follow two current executable documents:** [MVP Product & Acceptance V1.1](docs/MVP_PRODUCT_ACCEPTANCE_V1_0.md) and [MVP Customer Report & UX V1.1](docs/MVP_CUSTOMER_REPORT_UI_V1_0.md). [Product Strategy V1.1](docs/PRODUCT_STRATEGY_V1_1.md) remains the long-term business context, not a requirement to implement all 56 indicators in MVP.
+**Cursor must follow two current executable documents:** [MVP Product & Acceptance V1.1](docs/MVP_PRODUCT_ACCEPTANCE_V1_0.md) and [MVP Customer Report & UX V1.1](docs/MVP_CUSTOMER_REPORT_UI_V1_0.md).
+
+**Cross-repository implementation contract:** [VF-DIAG × VEYFRONT SiteOne MVP integration V1.0](docs/VF_DIAG_X_VEYFRONT_MVP_INTEGRATION_V1_0.md). [VF-DIAG Issue #2](https://github.com/gloweaseco-leo/VF-DIAG/issues/2) implements Worker/job/report/evidence API; [VEYFRONT Issue #39](https://github.com/gloweaseco-leo/VEYFRONT/issues/39) implements the customer UI/BFF/commercial path. Reuse the UI assets in VEYFRONT PR #36/#37 selectively from its latest main, not the VRAE backend contract. [Product Strategy V1.1](docs/PRODUCT_STRATEGY_V1_1.md) remains the long-term business context, not a requirement to implement all 56 indicators in MVP.
 
 ## Boundaries
 
