@@ -109,14 +109,18 @@ test("one active job is the whole M0 capacity", async () => {
 
 test("process tree kill stops a child", async () => {
   const child = spawnCrawler(process.execPath, ["-e", "setInterval(() => {}, 1000)"]);
-  const exited = new Promise<number | null>((resolve) => child.once("exit", (exitCode) => resolve(exitCode)));
+  const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => {
+    child.once("exit", (code, signal) => resolve({ code, signal }));
+  });
   await new Promise((resolve) => setTimeout(resolve, 200));
   await killProcessTree(child);
-  const code = await Promise.race([
+  const result = await Promise.race([
     exited,
-    new Promise<number | null>((_, reject) => setTimeout(() => reject(new Error("进程树没有在 3 秒内退出")), 3000)),
+    new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((_, reject) => {
+      setTimeout(() => reject(new Error("进程树没有在 3 秒内退出")), 3000);
+    }),
   ]);
-  assert.notEqual(code, null);
+  assert.equal(result.code !== null || result.signal !== null, true);
 });
 
 function post(base: string, url: string, key = "idem-key-01") {
