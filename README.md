@@ -22,15 +22,15 @@ Make a manufacturing/B2B export website useful to **human overseas buyers, searc
 
 ## Approved MVP: SiteOne-first
 
-**MVP implementation is now limited to SiteOne Crawler v2.5.1 (pinned release) and a thin VF-DIAG job/report interface.** Do not build a multi-framework product for the initial customer trial.
+**MVP implementation is limited to one SiteOne Crawler engine and a thin VF-DIAG job/report interface. M0 uses pinned v2.5.1; M1 may change only to a separately verified, pinned SiteOne version with Owner approval.** Do not build a multi-framework product for the initial customer trial.
 
 - Real input: HTTPS URL + one explicit authorization attestation.
-- Real output: bounded SiteOne scan, native HTML + JSON, Chinese mobile-first summary, evidence and next steps, optional user-initiated VEYFRONT consultation.
+- Real output: bounded SiteOne scan, native HTML + JSON, Chinese mobile-first summary **including an evidenced sample product-page observation and a contact-entry observation (or an explicit unverified status)**, evidence-linked next steps, optional user-initiated VEYFRONT consultation.
 - Real limits: no fake progress, no guaranteed search/AI referrals, no unverified negative claims or fabricated conversions; SiteOne quality score is technical, **not a rebuild verdict**.
 - Source/version warning: v2.5.1 tag documents HTML/JSON, browser screenshots and optional AI technical summary. Newer main-branch-only features such as AI extraction/IA/GEO report flags and NDJSON/stdin controls are **not MVP dependencies** unless independently verified and version-pinned.
 - Future framework research is retained as historical context, **not an implementation instruction**. Add another engine only after a documented MVP customer-value gap and separate Owner decision.
 
-**Cursor must follow two current executable documents:** [MVP Product & Acceptance V1.0](docs/MVP_PRODUCT_ACCEPTANCE_V1_0.md) and [MVP Customer Report & UX V1.0](docs/MVP_CUSTOMER_REPORT_UI_V1_0.md). [Product Strategy V1.1](docs/PRODUCT_STRATEGY_V1_1.md) remains the long-term business context, not a requirement to implement all 56 indicators in MVP.
+**Cursor must follow two current executable documents:** [MVP Product & Acceptance V1.1](docs/MVP_PRODUCT_ACCEPTANCE_V1_0.md) and [MVP Customer Report & UX V1.1](docs/MVP_CUSTOMER_REPORT_UI_V1_0.md). [Product Strategy V1.1](docs/PRODUCT_STRATEGY_V1_1.md) remains the long-term business context, not a requirement to implement all 56 indicators in MVP.
 
 ## Boundaries
 
@@ -58,7 +58,7 @@ Explicit website owner/authorized operator permission; controlled target/redirec
 
 ## Roadmap
 
-**M0** synthetic safety baseline + real SiteOne v2.5.1 HTML/JSON → **M1** authorized URL + Chinese customer report + consultation choice → **M2** only after real feedback: bounded product extraction/screenshot improvements. Broader D0–D4 / 56-indicator platform roadmap is deferred, not a blocker for MVP.
+**M0** synthetic safety baseline + real SiteOne v2.5.1 HTML/JSON → **M1** authorized URL + one product and one contact observation + Chinese evidence-based report + voluntary consultation → **M2** only after real feedback: deeper multi-page product extraction/screenshot improvements. Broader D0–D4 / 56-indicator platform roadmap is deferred, not a blocker for MVP.
 
 See the repository Issues for actionable Cursor work packages. All customer examples must be derived from real authorized scans or explicitly marked synthetic. Never claim production readiness until verified.
 
