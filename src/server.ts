@@ -5,7 +5,9 @@ import { createHttpServer } from "./http/server.ts";
 import { createJobService } from "./jobs/service.ts";
 import { runSiteOne } from "./siteone/run.ts";
 
-const token = assertServiceToken(process.env.VFDIAG_SERVICE_TOKEN);
+const token = assertServiceToken(process.env.VFDIAG_SERVICE_TOKEN, {
+  localOnly: process.env.VFDIAG_LOCAL_ONLY === "1",
+});
 const port = Number(process.env.VFDIAG_PORT ?? 8787);
 const bind = process.env.VFDIAG_BIND ?? "127.0.0.1";
 const dataDir = process.env.VFDIAG_DATA_DIR ?? path.join(process.cwd(), "data");

@@ -113,7 +113,7 @@ export function createJobService(options: {
       const job = await readJob(name);
       if (!job) continue;
       if (Date.parse(job.expires_at) <= now().getTime()) {
-        await writeJob({ ...job, state: "expired", report_available: false, updated_at: now().toISOString(), reason_code: "EXPIRED", reason: "报告已过期。" });
+        await expire(job);
         continue;
       }
       if (ACTIVE.has(job.state)) {
@@ -335,10 +335,26 @@ export function createJobService(options: {
     if (!/^[A-Za-z0-9_-]{8,80}$/.test(jobRef)) return null;
     const job = await readJob(jobRef);
     if (!job) return null;
-    if (job.state !== "expired" && Date.parse(job.expires_at) <= now().getTime()) {
-      return update(jobRef, { state: "expired", report_available: false, reason_code: "EXPIRED", reason: "报告已过期。" });
-    }
+    if (Date.parse(job.expires_at) <= now().getTime()) return expire(job);
     return job;
+  }
+
+  async function expire(job: JobRecord): Promise<JobRecord> {
+    await purgeArtifacts(job.job_ref);
+    if (job.state === "expired" && !job.report_available) return job;
+    return update(job.job_ref, {
+      state: "expired",
+      report_available: false,
+      reason_code: "EXPIRED",
+      reason: "报告已过期。",
+    });
+  }
+
+  async function purgeArtifacts(jobRef: string): Promise<void> {
+    const dir = jobDir(jobRef);
+    await Promise.all(
+      ["siteone.html", "siteone.json", "report.json"].map((name) => rm(path.join(dir, name), { force: true })),
+    );
   }
 
   async function hasActive(): Promise<boolean> {
@@ -364,7 +380,7 @@ export function createJobService(options: {
   async function update(jobRef: string, patch: Partial<JobRecord>): Promise<JobRecord> {
     const current = await readJob(jobRef);
     if (!current) throw new Error(`missing job ${jobRef}`);
-    if (current.state === "cancelled" && patch.state !== "cancelled") return current;
+    if (current.state === "cancelled" && patch.state !== "cancelled" && patch.state !== "expired") return current;
     const next = { ...current, ...patch, updated_at: now().toISOString() };
     await writeJob(next);
     return next;

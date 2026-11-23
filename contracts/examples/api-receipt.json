@@ -1,0 +1,578 @@
+{
+  "authorization": {
+    "version": "2026-11-22",
+    "statement": "我确认对该网站拥有管理权限，或已获得网站管理者授权进行公开页面诊断。",
+    "text_hash": "bafcdc7c13a5fe5e81264bd48964f92b817ab062e82cf31b7f5a3e15a89bf0ee"
+  },
+  "error_shape": "error.code",
+  "remaining_unknown": true,
+  "distinctions": {
+    "job_ref": "访问引用。服务凭证放在 Authorization 头里，不放进报告或分享文案。",
+    "job_state": "complete 表示扫描进程退出码为 0 且报告已写入。",
+    "headline_status": "报告 headline.status 为 partial 表示产品、联系或已证实 404 仍使这次观察不完整。两者不是同一个字段。"
+  },
+  "ssrf_not_proven": [
+    "拒绝 127.0.0.1、CGNAT 和 DNS 混合答案，只说明扫描前的目标门禁。",
+    "结果里出现目标域名以外的 http(s) 地址时不发布报告，但已经发出的请求收不回来。",
+    "容器没有出口防火墙。--resolve 和允许域名不能单独证明跳转或子资源没有访问内网。"
+  ],
+  "calls": [
+    {
+      "name": "reject_missing_authorization",
+      "method": "POST",
+      "path": "/v1/jobs",
+      "status": 400,
+      "body": {
+        "error": {
+          "code": "AUTHORIZATION_REQUIRED",
+          "message": "必须明确勾选授权声明后才能扫描。"
+        }
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff"
+      }
+    },
+    {
+      "name": "create_private_target",
+      "method": "POST",
+      "path": "/v1/jobs",
+      "status": 202,
+      "body": {
+        "job_ref": "JOB_PRIVATE",
+        "state": "queued",
+        "updated_at": "2026-11-23T02:00:00.000Z",
+        "expires_at": "2026-11-30T02:00:00.000Z",
+        "scope": {
+          "max_urls": 50,
+          "max_depth": 3,
+          "max_reqs_per_sec": 1,
+          "wall_clock_seconds": 180,
+          "browser": false
+        },
+        "checked_pages": null,
+        "remaining_unknown": true,
+        "reason_code": null,
+        "reason": null,
+        "poll_after_seconds": 2,
+        "report_available": false,
+        "target_host": null,
+        "synthetic": false,
+        "report_language": "zh"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff"
+      }
+    },
+    {
+      "name": "private_target_final",
+      "method": "GET",
+      "path": "/v1/jobs/JOB",
+      "status": 200,
+      "body": {
+        "job_ref": "JOB_PRIVATE",
+        "state": "failed",
+        "updated_at": "2026-11-23T02:00:00.000Z",
+        "expires_at": "2026-11-30T02:00:00.000Z",
+        "scope": {
+          "max_urls": 50,
+          "max_depth": 3,
+          "max_reqs_per_sec": 1,
+          "wall_clock_seconds": 180,
+          "browser": false
+        },
+        "checked_pages": null,
+        "remaining_unknown": true,
+        "reason_code": "TARGET_PRIVATE_ADDRESS",
+        "reason": "目标地址落在私网、回环或链路本地范围。",
+        "poll_after_seconds": 0,
+        "report_available": false,
+        "target_host": null,
+        "synthetic": false,
+        "report_language": "zh"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff"
+      }
+    },
+    {
+      "name": "create_report",
+      "method": "POST",
+      "path": "/v1/jobs",
+      "status": 202,
+      "body": {
+        "job_ref": "JOB_REPORT",
+        "state": "queued",
+        "updated_at": "2026-11-23T02:00:00.000Z",
+        "expires_at": "2026-11-30T02:00:00.000Z",
+        "scope": {
+          "max_urls": 50,
+          "max_depth": 3,
+          "max_reqs_per_sec": 1,
+          "wall_clock_seconds": 180,
+          "browser": false
+        },
+        "checked_pages": null,
+        "remaining_unknown": true,
+        "reason_code": null,
+        "reason": null,
+        "poll_after_seconds": 2,
+        "report_available": false,
+        "target_host": null,
+        "synthetic": false,
+        "report_language": "zh"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff"
+      }
+    },
+    {
+      "name": "report_job_status",
+      "method": "GET",
+      "path": "/v1/jobs/JOB",
+      "status": 200,
+      "body": {
+        "job_ref": "JOB_REPORT",
+        "state": "complete",
+        "updated_at": "2026-11-23T02:00:00.000Z",
+        "expires_at": "2026-11-30T02:00:00.000Z",
+        "scope": {
+          "max_urls": 50,
+          "max_depth": 3,
+          "max_reqs_per_sec": 1,
+          "wall_clock_seconds": 180,
+          "browser": false
+        },
+        "checked_pages": 3,
+        "remaining_unknown": true,
+        "reason_code": null,
+        "reason": null,
+        "poll_after_seconds": 0,
+        "report_available": true,
+        "target_host": "factory.example",
+        "synthetic": false,
+        "report_language": "zh"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff"
+      }
+    },
+    {
+      "name": "read_report",
+      "method": "GET",
+      "path": "/v1/jobs/JOB/report",
+      "status": 200,
+      "body": {
+        "contract_version": "vfdiag.website-diagnosis.v1",
+        "report_schema_version": "1.0",
+        "report_language": "zh",
+        "synthetic": false,
+        "job_ref": "JOB_REPORT",
+        "engine": "siteone",
+        "engine_version": "2.5.1",
+        "target": {
+          "input_url": "https://factory.example/products",
+          "host": "factory.example"
+        },
+        "generated_at": "2026-11-23T02:00:00.000Z",
+        "timezone": "Asia/Shanghai",
+        "retention_days": 7,
+        "headline": {
+          "domain": "factory.example",
+          "scanned_at": "2026-11-23 02:00:00",
+          "status": "partial",
+          "summary": "采样里有一条已证实的产品链接返回 404。联系页本次可以打开。本次未检测 AI 是否引用该网站。"
+        },
+        "ai_visibility": {
+          "status": "NOT_CHECKED",
+          "statement": "本次未检测 AI 是否引用该网站。"
+        },
+        "coverage": {
+          "scanned_pages": 3,
+          "max_urls": 50,
+          "max_depth": 3,
+          "partial": true,
+          "reason_codes": [
+            "HTML_ONLY_NO_BROWSER"
+          ],
+          "statement": "本结论仅针对已检查页面。采样不足的部分不能当成网站缺陷。"
+        },
+        "advantages": [
+          {
+            "id": "contact-reachable",
+            "title": "抽到的联系页可以打开",
+            "claim_level": "OBSERVED",
+            "fact": "本次访问 https://factory.example/contact 返回 200。这不能说明表单已提交或邮件已送达。",
+            "source": {
+              "source_url": "https://factory.example/contact",
+              "target_url": "https://factory.example/contact",
+              "source_field": "results",
+              "excerpt": "联系",
+              "observed_at": "2026-11-23 02:00:00",
+              "observed_at_has_timezone": false,
+              "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+            }
+          }
+        ],
+        "buyer_tasks": {
+          "find": {
+            "question": "海外买家能找到吗？",
+            "status": "OBSERVED",
+            "fact": "本次抓到 2 个返回 200 的地址，同时 https://factory.example/products/valve 返回 404。这不是搜索排名。",
+            "impact": "已经点到这条失效链接的人会中断。没有证据说明搜索或 AI 是否展示了这个网站。",
+            "impact_level": "INFERRED",
+            "suggestion": "先修这条失效链接，再谈收录。",
+            "source": {
+              "source_url": "https://factory.example/",
+              "target_url": "https://factory.example/products/valve",
+              "source_field": "tables.404.rows",
+              "excerpt": "404",
+              "observed_at": "2026-11-23 02:00:00",
+              "observed_at_has_timezone": false,
+              "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+            }
+          },
+          "understand": {
+            "question": "海外买家能看懂吗？",
+            "status": "OBSERVED",
+            "fact": "抽到的产品链接 https://factory.example/products/valve 返回 404，所以本次没有读到该页规格。",
+            "impact": "走这条链接的人看不到产品说明。",
+            "impact_level": "INFERRED",
+            "suggestion": "先恢复页面，再核对规格是文字还是图片。",
+            "source": {
+              "source_url": "https://factory.example/",
+              "target_url": "https://factory.example/products/valve",
+              "source_field": "tables.404.rows",
+              "excerpt": "404",
+              "observed_at": "2026-11-23 02:00:00",
+              "observed_at_has_timezone": false,
+              "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+            }
+          },
+          "contact": {
+            "question": "海外买家能联系吗？",
+            "status": "OBSERVED",
+            "fact": "联系页 https://factory.example/contact 返回 200。外链里没有看到邮箱、电话、WhatsApp 或微信。页面能打开不等于表单可以提交。",
+            "impact": "采购员可能找得到这个页面。是否有人回复，本次没有验证。",
+            "impact_level": "INFERRED",
+            "suggestion": "由销售确认这个入口是否仍在使用。",
+            "source": {
+              "source_url": "https://factory.example/contact",
+              "target_url": "https://factory.example/contact",
+              "source_field": "results",
+              "excerpt": "联系",
+              "observed_at": "2026-11-23 02:00:00",
+              "observed_at_has_timezone": false,
+              "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+            }
+          }
+        },
+        "product_observation": {
+          "status": "OBSERVED",
+          "url": "https://factory.example/products/valve",
+          "title": null,
+          "excerpt": null,
+          "http_status": "404",
+          "specs_status": "NOT_CHECKED",
+          "specs_note": "链接返回 404，规格未核查。",
+          "source": {
+            "source_url": "https://factory.example/",
+            "target_url": "https://factory.example/products/valve",
+            "source_field": "tables.404.rows",
+            "excerpt": "404",
+            "observed_at": "2026-11-23 02:00:00",
+            "observed_at_has_timezone": false,
+            "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+          }
+        },
+        "contact_observation": {
+          "status": "OBSERVED",
+          "url": "https://factory.example/contact",
+          "title": "联系",
+          "http_status": "200",
+          "source": {
+            "source_url": "https://factory.example/contact",
+            "target_url": "https://factory.example/contact",
+            "source_field": "results",
+            "excerpt": "联系",
+            "observed_at": "2026-11-23 02:00:00",
+            "observed_at_has_timezone": false,
+            "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+          }
+        },
+        "language_observation": {
+          "status": "OBSERVED",
+          "sampled_pages": 1,
+          "cjk_chars": 4,
+          "latin_letters": 0,
+          "fact": "已检查页面的标题和简介里，汉字 4 个，拉丁字母 0 个。",
+          "inference": "如果正文同样以中文为主，海外采购员可能无法直接阅读。",
+          "inference_level": "INFERRED",
+          "source": {
+            "source_url": "https://factory.example/",
+            "target_url": null,
+            "source_field": "tables.seo.rows",
+            "excerpt": "联系 联系",
+            "observed_at": "2026-11-23 02:00:00",
+            "observed_at_has_timezone": false,
+            "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+          }
+        },
+        "contact_channel_observation": {
+          "status": "NEEDS_CONFIRMATION",
+          "channels": [],
+          "statement": "只发现联系页面，未在外链中看到邮箱、电话、WhatsApp 或微信。页面返回 200 不能证明表单可以提交。",
+          "source": {
+            "source_url": "https://factory.example/contact",
+            "target_url": null,
+            "source_field": "tables.external-urls.rows",
+            "excerpt": null,
+            "observed_at": "2026-11-23 02:00:00",
+            "observed_at_has_timezone": false,
+            "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+          }
+        },
+        "priorities": [
+          {
+            "id": "product-404-1",
+            "title": "一条产品链接打不开",
+            "claim_level": "OBSERVED",
+            "fact": "本次从 https://factory.example/ 发现的链接 https://factory.example/products/valve 返回 404。",
+            "impact": "通过这条链接继续看产品的采购员，可能到不了详情页。",
+            "impact_level": "INFERRED",
+            "suggestion": "核对这条链接和对应产品页，修复后用同范围再扫一次。",
+            "needs_confirmation": "该链接是不是还在用的主产品入口，需要网站管理者确认。",
+            "buyer_step": "understand",
+            "source": {
+              "source_url": "https://factory.example/",
+              "target_url": "https://factory.example/products/valve",
+              "source_field": "tables.404.rows",
+              "excerpt": "404",
+              "observed_at": "2026-11-23 02:00:00",
+              "observed_at_has_timezone": false,
+              "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+            }
+          }
+        ],
+        "recommended_next_step": "LOCAL_OPTIMIZE",
+        "next_step_reason": "已证实的问题是单个链接返回 404，可以单独修复后复查。技术分和标题层级没有参与这个判断。",
+        "primary_action": {
+          "label": "查看这条证据",
+          "kind": "evidence"
+        },
+        "share_blurb": "网站 factory.example。本次是授权声明后的公开页面扫描，不是排名，也未检测 AI 是否引用。优先事项：本次从 https://factory.example/ 发现的链接 https://factory.example/products/valve 返回 404。",
+        "artifact_kinds": [
+          "html",
+          "json"
+        ]
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff"
+      }
+    },
+    {
+      "name": "download_html",
+      "method": "GET",
+      "path": "/v1/jobs/JOB/artifacts/html",
+      "status": 200,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "content-disposition": "attachment; filename=\"siteone.html\"",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff"
+      },
+      "body": {
+        "bytes": 22,
+        "sha256": "5be8790e8abd97a38ff67eefebc2bc3321a1d72d60d8139aa4c27a28284f2d03",
+        "text": "<html>synthetic</html>"
+      }
+    },
+    {
+      "name": "download_json",
+      "method": "GET",
+      "path": "/v1/jobs/JOB/artifacts/json",
+      "status": 200,
+      "body": {
+        "crawler": {
+          "version": "2.5.1",
+          "executedAt": "2026-11-23 02:00:00"
+        },
+        "stats": {
+          "totalUrls": 3
+        },
+        "results": [
+          {
+            "url": "https://factory.example/",
+            "status": "200",
+            "type": 1
+          },
+          {
+            "url": "https://factory.example/products/valve",
+            "status": "404",
+            "type": 1
+          },
+          {
+            "url": "https://factory.example/contact",
+            "status": "200",
+            "type": 1
+          }
+        ],
+        "tables": {
+          "404": {
+            "rows": [
+              {
+                "url": "https://factory.example/products/valve",
+                "sourceUqId": "/",
+                "statusCode": "404"
+              }
+            ]
+          },
+          "seo": {
+            "rows": [
+              {
+                "urlPathAndQuery": "/contact",
+                "title": "联系",
+                "h1": "联系",
+                "description": ""
+              }
+            ]
+          }
+        }
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "content-disposition": "attachment; filename=\"siteone.json\"",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff"
+      }
+    },
+    {
+      "name": "create_cancel",
+      "method": "POST",
+      "path": "/v1/jobs",
+      "status": 202,
+      "body": {
+        "job_ref": "JOB_CANCEL",
+        "state": "queued",
+        "updated_at": "2026-11-23T02:00:00.000Z",
+        "expires_at": "2026-11-30T02:00:00.000Z",
+        "scope": {
+          "max_urls": 50,
+          "max_depth": 3,
+          "max_reqs_per_sec": 1,
+          "wall_clock_seconds": 180,
+          "browser": false
+        },
+        "checked_pages": null,
+        "remaining_unknown": true,
+        "reason_code": null,
+        "reason": null,
+        "poll_after_seconds": 2,
+        "report_available": false,
+        "target_host": null,
+        "synthetic": false,
+        "report_language": "zh"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff"
+      }
+    },
+    {
+      "name": "cancel_job",
+      "method": "POST",
+      "path": "/v1/jobs/JOB/cancel",
+      "status": 202,
+      "body": {
+        "job_ref": "JOB_CANCEL",
+        "state": "cancelled",
+        "updated_at": "2026-11-23T02:00:00.000Z",
+        "expires_at": "2026-11-30T02:00:00.000Z",
+        "scope": {
+          "max_urls": 50,
+          "max_depth": 3,
+          "max_reqs_per_sec": 1,
+          "wall_clock_seconds": 180,
+          "browser": false
+        },
+        "checked_pages": null,
+        "remaining_unknown": true,
+        "reason_code": "CANCELLED",
+        "reason": "扫描已取消。",
+        "poll_after_seconds": 0,
+        "report_available": false,
+        "target_host": null,
+        "synthetic": false,
+        "report_language": "zh"
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff"
+      }
+    },
+    {
+      "name": "report_after_cancel",
+      "method": "GET",
+      "path": "/v1/jobs/JOB/report",
+      "status": 409,
+      "body": {
+        "error": {
+          "code": "REPORT_NOT_READY",
+          "message": "报告还没有生成。"
+        }
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff"
+      }
+    },
+    {
+      "name": "expired_status",
+      "method": "GET",
+      "path": "/v1/jobs/JOB",
+      "status": 410,
+      "body": {
+        "error": {
+          "code": "EXPIRED",
+          "message": "报告已过期。"
+        }
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff"
+      }
+    },
+    {
+      "name": "expired_html",
+      "method": "GET",
+      "path": "/v1/jobs/JOB/artifacts/html",
+      "status": 410,
+      "body": {
+        "error": {
+          "code": "EXPIRED",
+          "message": "报告已过期。"
+        }
+      },
+      "headers": {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff"
+      }
+    }
+  ]
+}

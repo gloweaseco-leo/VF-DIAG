@@ -75,7 +75,7 @@ BFF必须执行同源/CSRF、用户会话、最小频率限制、脱敏错误映
 
 **创建请求字段**：`contract_version=vfdiag.website-diagnosis.v1`、`url`、`language=zh|en`、`authorization={version:2026-11-22, accepted:true, accepted_at, text_hash}`、`idempotency_key`。`text_hash` 是授权声明原文的 SHA-256。`language=en` 可以提交，但 `report_language` 固定为 `zh`。同一幂等键加同一请求返回已有任务；同一幂等键换了网址返回 `409 IDEMPOTENCY_CONFLICT`。M0 同时只接受一个未结束任务，多余请求返回 `429 JOB_CAPACITY`。
 
-**任务状态**：`queued | validating | running | summarizing | complete | partial | failed | cancelled | expired`。状态体包含 `job_ref,state,updated_at,expires_at,scope,checked_pages,remaining_unknown,reason_code,reason,poll_after_seconds,report_available,target_host,synthetic,report_language`。`remaining_unknown` 在 M0 恒为 true，不返回百分比。工件和报告保留 7 天。
+**任务状态**：`queued | validating | running | summarizing | complete | partial | failed | cancelled | expired`。状态体包含 `job_ref,state,updated_at,expires_at,scope,checked_pages,remaining_unknown,reason_code,reason,poll_after_seconds,report_available,target_host,synthetic,report_language`。`remaining_unknown` 在 M0 恒为 true，不返回百分比。工件和报告保留 7 天。到期后读取返回 `410`，并删除该任务目录里的 `siteone.html`、`siteone.json`、`report.json`；`job.json` 只留下过期状态。Worker 重启时也会清掉已到期任务的这三份工件。
 
 **客户报告以 [contracts/vfdiag.website-diagnosis.v1.schema.json](../contracts/vfdiag.website-diagnosis.v1.schema.json) 为准。** VEYFRONT 按这个投影渲染，不读取 SiteOne 原始 JSON 再判断缺陷。投影包含优势、三张买家任务卡、产品观察、联系观察、语言观察、联系方式类型、最多三条优先事项、分叉和可复制口述。技术分、缺 H1 或单个 404 不会输出 `DISCUSS_REBUILD` 或 `SELF_FIX`。无证据时优先事项可以为 0 条。
 

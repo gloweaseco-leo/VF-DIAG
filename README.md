@@ -81,5 +81,7 @@ docker compose -f docker-compose.yml -f docker-compose.synthetic.yml exec worker
 
 The default worker rejects private and loopback targets. `fixture-site` is allowed only when `docker-compose.synthetic.yml` sets `VFDIAG_SYNTHETIC_HOSTS`. Customer reports follow `contracts/vfdiag.website-diagnosis.v1.schema.json`. Unit tests do not need Docker: `npm test`.
 
+The compose placeholder token is accepted only with `VFDIAG_LOCAL_ONLY=1`. That flag does not open or close ports; the published address stays `127.0.0.1:8787`. Use a random token before any other publish. Seven days after a job is created, the worker deletes `siteone.html`, `siteone.json` and `report.json`. A local test pass is not a customer GO. Redirects, container egress and subresource fetches are not fully proven by the current checks.
+
 ---
 2026-11-22 · VEYFRONT Owner decision · No implementation or public deployment yet.

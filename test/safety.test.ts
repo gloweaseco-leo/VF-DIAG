@@ -26,6 +26,8 @@ test("accepts a public https domain pinned to a public address", async () => {
 test("rejects private, loopback, metadata, and mixed DNS answers", async () => {
   const cases = [
     ["https://127.0.0.1/", "TARGET_PRIVATE_ADDRESS"],
+    ["https://[::ffff:127.0.0.1]/", "TARGET_PRIVATE_ADDRESS"],
+    ["https://100.64.0.2/", "TARGET_PRIVATE_ADDRESS"],
     ["https://10.1.1.1/", "TARGET_PRIVATE_ADDRESS"],
     ["https://192.168.1.20/", "TARGET_PRIVATE_ADDRESS"],
     ["https://169.254.169.254/", "TARGET_PRIVATE_ADDRESS"],

@@ -5,11 +5,17 @@ export function authorizationTextHash(): string {
   return createHash("sha256").update(AUTHORIZATION_STATEMENT, "utf8").digest("hex");
 }
 
-export function assertServiceToken(token: string | undefined): string {
+export const LOCAL_DEV_TOKEN = "local-docker-dev-token-change-me";
+
+export function assertServiceToken(token: string | undefined, options?: { localOnly?: boolean }): string {
   if (!token || token.trim().length < 16) {
     throw new Error("VFDIAG_SERVICE_TOKEN 至少需要 16 个字符。");
   }
-  return token.trim();
+  const value = token.trim();
+  if (value === LOCAL_DEV_TOKEN && options?.localOnly !== true) {
+    throw new Error("默认本地口令只能在 VFDIAG_LOCAL_ONLY=1 时使用。远程暴露前必须换成随机凭据。");
+  }
+  return value;
 }
 
 export type CreateJobBody = {
