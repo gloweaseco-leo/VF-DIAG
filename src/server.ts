@@ -2,6 +2,7 @@ import { lookup } from "node:dns/promises";
 import path from "node:path";
 import { assertServiceToken } from "./http/request.ts";
 import { createHttpServer } from "./http/server.ts";
+import { createProductionAnalyzer } from "./commercial/qwen.ts";
 import { createJobService } from "./jobs/service.ts";
 import { runSiteOne } from "./siteone/run.ts";
 
@@ -21,6 +22,7 @@ const syntheticHosts = new Set(
     .filter(Boolean),
 );
 
+const qwenKey = process.env.VFDIAG_QWEN_API_KEY;
 const jobs = createJobService({
   dataDir,
   syntheticHosts,
@@ -29,6 +31,7 @@ const jobs = createJobService({
     return records.map((record) => record.address);
   },
   run: (options) => runSiteOne({ ...options, bin: siteoneBin }),
+  analyze: qwenKey ? createProductionAnalyzer({ apiKey: qwenKey, baseUrl: process.env.VFDIAG_QWEN_BASE_URL }) : undefined,
 });
 
 await jobs.recover();

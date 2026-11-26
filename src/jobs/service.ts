@@ -11,6 +11,8 @@ import {
   WALL_CLOCK_MS,
 } from "../constants.ts";
 import type { CreateJobBody } from "../http/request.ts";
+import { MODEL_TIMEOUT_MS } from "../commercial/qwen.ts";
+import { produceCommercial, type Analyzer } from "../commercial/stage.ts";
 import { projectReport } from "../report/project.ts";
 import type { CustomerReport, SiteOneJson } from "../report/types.ts";
 import type { Lookup, ResolvedTarget } from "../safety/target.ts";
@@ -90,6 +92,7 @@ export function createJobService(options: {
   syntheticHosts: ReadonlySet<string>;
   run: Runner;
   now?: () => Date;
+  analyze?: Analyzer;
 }) {
   const now = options.now ?? (() => new Date());
   const jobsDir = path.join(options.dataDir, "jobs");
@@ -117,6 +120,17 @@ export function createJobService(options: {
         continue;
       }
       if (ACTIVE.has(job.state)) {
+        if (job.state === "summarizing" && (await readFile(path.join(jobDir(job.job_ref), "report.json"), "utf8").catch(() => null))) {
+          const controller = new AbortController();
+          aborts.set(job.job_ref, controller);
+          queueMicrotask(() => {
+            void continueCommercial(job.job_ref, controller).catch((error: unknown) => {
+              const message = error instanceof Error ? error.message : "任务执行失败。";
+              return update(job.job_ref, { state: "failed", reason_code: "ENGINE_FAILED", reason: message, report_available: false }).catch(() => undefined);
+            });
+          });
+          continue;
+        }
         await writeJob({
           ...job,
           state: "failed",
@@ -256,6 +270,16 @@ export function createJobService(options: {
       aborts.delete(jobRef);
       return;
     }
+    if (noWorkingResponse(parsed)) {
+      await update(jobRef, {
+        state: "failed",
+        reason_code: "TARGET_UNREACHABLE",
+        reason: "目标网站没有连上，报告未发布。",
+        report_available: false,
+      });
+      aborts.delete(jobRef);
+      return;
+    }
     const projected = projectReport({
       jobRef,
       inputUrl: verdict.target.href,
@@ -271,11 +295,76 @@ export function createJobService(options: {
       return;
     }
     await writeFile(path.join(dir, "report.json"), JSON.stringify(projected.report));
-    const checked = projected.report.coverage.scanned_pages;
-    const early = result.exitCode !== 0;
+    await writeFile(path.join(dir, "scan-meta.json"), JSON.stringify({ exitCode: result.exitCode, checked_pages: projected.report.coverage.scanned_pages }));
+    await finishCommercial(jobRef, dir, parsed, result.jsonText, result.html ? result.html.toString("utf8") : null, verdict.target.host, controller);
+  }
+
+  async function continueCommercial(jobRef: string, controller: AbortController): Promise<void> {
+    const dir = jobDir(jobRef);
+    let parsed: SiteOneJson;
+    try {
+      parsed = JSON.parse(await readFile(path.join(dir, "siteone.json"), "utf8")) as SiteOneJson;
+    } catch {
+      await update(jobRef, { state: "failed", reason_code: "WORKER_RESTARTED", reason: "Worker 重启前扫描结果不完整，本次没有沿用。", report_available: false });
+      aborts.delete(jobRef);
+      return;
+    }
+    const host = (await readJob(jobRef))?.target_host;
+    if (!host) {
+      await update(jobRef, { state: "failed", reason_code: "WORKER_RESTARTED", reason: "Worker 重启前任务未记录目标域名。", report_available: false });
+      aborts.delete(jobRef);
+      return;
+    }
+    const jsonText = await readFile(path.join(dir, "siteone.json"), "utf8");
+    const html = await readFile(path.join(dir, "siteone.html"), "utf8").catch(() => null);
+    await finishCommercial(jobRef, dir, parsed, jsonText, html, host, controller);
+  }
+
+  async function finishCommercial(
+    jobRef: string,
+    dir: string,
+    parsed: SiteOneJson,
+    jsonText: string,
+    html: string | null,
+    host: string,
+    controller: AbortController,
+  ): Promise<void> {
+    const timeout = AbortSignal.timeout(MODEL_TIMEOUT_MS);
+    const signal = AbortSignal.any([controller.signal, timeout]);
+    try {
+      await produceCommercial({
+        dir,
+        siteone: parsed,
+        siteoneText: jsonText,
+        html,
+        host,
+        generatedAt: now().toISOString(),
+        signal,
+        analyze: options.analyze,
+      });
+    } catch (error) {
+      if (controller.signal.aborted) {
+        await update(jobRef, { state: "cancelled", reason_code: "CANCELLED", reason: "扫描已取消。", report_available: false });
+        aborts.delete(jobRef);
+        return;
+      }
+      if (timeout.aborted) {
+        await writeFile(path.join(dir, "commercial-error.json"), JSON.stringify({ code: "MODEL_TIMEOUT", message: "模型调用超时，技术报告已保留，商业报告未生成。" }));
+      } else {
+        const message = error instanceof Error ? error.message : "商业报告阶段失败。";
+        await writeFile(path.join(dir, "commercial-error.json"), JSON.stringify({ code: "MODEL_FAILED", message }));
+      }
+    }
+    if (controller.signal.aborted) {
+      await update(jobRef, { state: "cancelled", reason_code: "CANCELLED", reason: "扫描已取消。", report_available: false });
+      aborts.delete(jobRef);
+      return;
+    }
+    const meta = JSON.parse(await readFile(path.join(dir, "scan-meta.json"), "utf8").catch(() => "{}")) as { exitCode?: number | null; checked_pages?: number };
+    const early = meta.exitCode !== 0 && meta.exitCode !== undefined && meta.exitCode !== null;
     await update(jobRef, {
       state: early ? "partial" : "complete",
-      checked_pages: checked,
+      checked_pages: typeof meta.checked_pages === "number" ? meta.checked_pages : null,
       report_available: true,
       reason_code: early ? "ENGINE_EXIT_NONZERO" : null,
       reason: early ? "扫描进程非正常结束，报告只覆盖已经写下的结果。" : null,
@@ -297,6 +386,22 @@ export function createJobService(options: {
     if (!job.report_available) return error(409, "REPORT_NOT_READY", "报告还没有生成。");
     const raw = await readFile(path.join(jobDir(jobRef), "report.json"), "utf8");
     return { status: 200, body: JSON.parse(raw) as CustomerReport };
+  }
+
+  async function commercialReport(jobRef: string): Promise<{ status: number; body: unknown }> {
+    const job = await loadVisible(jobRef);
+    if (!job) return error(404, "JOB_NOT_FOUND", "任务不存在。");
+    if (job.state === "expired") return error(410, "EXPIRED", "报告已过期。");
+    const dir = jobDir(jobRef);
+    const ready = await readFile(path.join(dir, "commercial-report.json"), "utf8").catch(() => null);
+    if (ready) return { status: 200, body: JSON.parse(ready) as unknown };
+    if (ACTIVE.has(job.state)) return error(409, "COMMERCIAL_PENDING", "商业报告还在生成。");
+    const failed = await readFile(path.join(dir, "commercial-error.json"), "utf8").catch(() => null);
+    if (failed) {
+      const body = JSON.parse(failed) as { code?: string; message?: string };
+      return error(409, body.code ?? "COMMERCIAL_NOT_READY", body.message ?? "商业报告没有生成。");
+    }
+    return error(409, "COMMERCIAL_NOT_READY", "商业报告没有生成。");
   }
 
   async function artifact(jobRef: string, kind: string): Promise<{ status: number; body: Buffer; contentType: string; filename: string } | { status: number; body: unknown }> {
@@ -353,7 +458,7 @@ export function createJobService(options: {
   async function purgeArtifacts(jobRef: string): Promise<void> {
     const dir = jobDir(jobRef);
     await Promise.all(
-      ["siteone.html", "siteone.json", "report.json"].map((name) => rm(path.join(dir, name), { force: true })),
+      ["siteone.html", "siteone.json", "report.json", "scan-meta.json", "analysis.json", "commercial-report.json", "commercial-receipt.json", "commercial-error.json"].map((name) => rm(path.join(dir, name), { force: true })),
     );
   }
 
@@ -422,7 +527,19 @@ export function createJobService(options: {
     throw lastError;
   }
 
-  return { recover, create, get, report, artifact, cancel };
+  return { recover, create, get, report, commercialReport, artifact, cancel };
+}
+
+export function noWorkingResponse(siteone: SiteOneJson): boolean {
+  const rows = (siteone.results ?? []).filter((row) => {
+    const url = typeof row.url === "string" ? row.url : "";
+    return url.startsWith("http://") || url.startsWith("https://");
+  });
+  if (rows.length === 0) return true;
+  return rows.every((row) => {
+    const status = typeof row.status === "string" ? row.status : "";
+    return status.startsWith("-1") || status.includes("CONN-FAIL");
+  });
 }
 
 function toStatus(job: JobRecord): JobStatus {

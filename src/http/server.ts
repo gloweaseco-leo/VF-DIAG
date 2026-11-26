@@ -50,7 +50,7 @@ async function handle(
     return;
   }
 
-  const jobMatch = path.match(/^\/v1\/jobs\/([A-Za-z0-9_-]{8,80})(\/report|\/cancel|\/artifacts\/(html|json))?$/);
+  const jobMatch = path.match(/^\/v1\/jobs\/([A-Za-z0-9_-]{8,80})(\/report|\/commercial-report|\/cancel|\/artifacts\/(html|json))?$/);
   if (req.method === "POST" && path === "/v1/jobs") {
     const parsed = parseCreateJob(await readJson(req));
     if (!parsed.ok) {
@@ -79,6 +79,11 @@ async function handle(
   }
   if (req.method === "GET" && suffix === "/report") {
     const result = await options.jobs.report(jobRef);
+    respond(result.status, result.body);
+    return;
+  }
+  if (req.method === "GET" && suffix === "/commercial-report") {
+    const result = await options.jobs.commercialReport(jobRef);
     respond(result.status, result.body);
     return;
   }

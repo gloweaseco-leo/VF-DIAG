@@ -125,3 +125,9 @@ BFF必须执行同源/CSRF、用户会话、最小频率限制、脱敏错误映
 - **不新增**独立前端仓库、共享生产数据库、完整多引擎诊断平台、VRAE兼容层、CRM、复杂账号系统、虚假进度或自动销售转化。
 
 **Owner验收句：VEYFRONT客户在同一品牌旅程中输入网址并授权，真实调用独立SiteOne Worker，看到可回查的产品/联系观察与合理改善建议，再自主选择是否咨询。**
+
+## 9. 商业报告数据（2026-11-26 增补）
+
+扫描之后，VF-DIAG 可以用 Qwen4-Max 和 Skill V0.3 生成第二份数据：`GET /v1/jobs/:ref/commercial-report`。字段、状态和 PDF 分工见 [商业报告数据契约 V1](VF_DIAG_COMMERCIAL_REPORT_V1.md)。原有 `/report` 技术投影不变。
+
+PDF 仍由 VEYFRONT 用 V2.1 打印样式生成。VF-DIAG 只提供数据和 `pdf.status = PENDING_VEYFRONT_PRINT`。这一步还没有跨仓联调。

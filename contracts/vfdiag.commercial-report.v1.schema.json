@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vfdiag.local/contracts/vfdiag.commercial-report.v1.schema.json",
+  "title": "VF-DIAG commercial report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "report_language", "generated_at", "subject", "delivery", "overview", "chapters", "visuals", "next_step", "technical_appendix", "evidence"],
+  "properties": {
+    "contract_version": { "const": "vfdiag.commercial-report.v1" },
+    "report_language": { "const": "zh" },
+    "generated_at": { "type": "string" },
+    "subject": { "type": "object" },
+    "delivery": { "type": "object" },
+    "overview": { "type": "object" },
+    "chapters": { "type": "array" },
+    "visuals": { "type": "array" },
+    "next_step": { "type": "object" },
+    "technical_appendix": { "type": "object" },
+    "evidence": { "type": "array" }
+  }
+}

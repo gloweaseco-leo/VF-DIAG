@@ -24,7 +24,19 @@ test("crawler arguments stay inside the M0 allowlist", () => {
   assert.ok(args.includes("--max-reqs-per-sec=1"));
   assert.ok(args.includes("--workers=1"));
   assert.ok(args.includes("--allowed-domain-for-crawling=factory.example"));
-  assert.ok(args.includes("--resolve=factory.example:443:93.184.216.34"));
+  assert.equal(args.some((arg) => arg.startsWith("--resolve=")), false);
+  const synthetic = buildSiteOneArgs(
+    {
+      href: "http://fixture-site:8080/",
+      origin: "http://fixture-site:8080",
+      host: "fixture-site",
+      port: 8080,
+      addresses: ["172.16.50.2"],
+      synthetic: true,
+    },
+    { jsonFile: "/tmp/job/siteone.json", htmlFile: "/tmp/job/siteone.html" },
+  );
+  assert.ok(synthetic.includes("--resolve=fixture-site:8080:172.16.50.2"));
   const storageDir = path.join(path.dirname("/tmp/job/siteone.json"), "tmp", "result-storage");
   assert.ok(args.includes(`--result-storage-dir=${storageDir}`));
   assert.ok(args.includes("--http-cache-dir=off"));

@@ -1,0 +1,576 @@
+{
+  "title": "VEYFRONT Report Analysis Package · Validation v0.1",
+  "description": "Internal only. Never return this whole object directly to a client browser.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "mode",
+    "source_profile",
+    "technical_scorecard",
+    "evidence_index",
+    "diagnosis",
+    "visual_plan",
+    "conversion",
+    "risk_review"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "veyfront.report-analysis.v0.1"
+    },
+    "mode": {
+      "const": "validation"
+    },
+    "source_profile": {
+      "$ref": "#/$defs/sourceProfile"
+    },
+    "technical_scorecard": {
+      "$ref": "#/$defs/scorecard"
+    },
+    "evidence_index": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "diagnosis": {
+      "$ref": "#/$defs/diagnosis"
+    },
+    "visual_plan": {
+      "type": "array",
+      "maxItems": 6,
+      "items": {
+        "$ref": "#/$defs/visual"
+      }
+    },
+    "conversion": {
+      "$ref": "#/$defs/conversion"
+    },
+    "risk_review": {
+      "$ref": "#/$defs/riskReview"
+    }
+  },
+  "$defs": {
+    "strings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^E[0-9]{2,3}$"
+      }
+    },
+    "nullableNonnegativeInteger": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "sourceProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_domain",
+        "source_files",
+        "observed_at",
+        "checked_urls",
+        "http_200",
+        "http_301",
+        "max_depth",
+        "scope_summary",
+        "data_sufficiency",
+        "limitations"
+      ],
+      "properties": {
+        "target_domain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_files": {
+          "$ref": "#/$defs/strings"
+        },
+        "observed_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "checked_urls": {
+          "$ref": "#/$defs/nullableNonnegativeInteger"
+        },
+        "http_200": {
+          "$ref": "#/$defs/nullableNonnegativeInteger"
+        },
+        "http_301": {
+          "$ref": "#/$defs/nullableNonnegativeInteger"
+        },
+        "max_depth": {
+          "$ref": "#/$defs/nullableNonnegativeInteger"
+        },
+        "scope_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "data_sufficiency": {
+          "enum": [
+            "adequate_for_limited_report",
+            "partial",
+            "unusable"
+          ]
+        },
+        "limitations": {
+          "$ref": "#/$defs/strings"
+        }
+      }
+    },
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "score",
+        "max_score",
+        "evidence_ids",
+        "caveat"
+      ],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "score": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "max_score": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0
+        },
+        "evidence_ids": {
+          "$ref": "#/$defs/refs"
+        },
+        "caveat": {
+          "type": "string"
+        }
+      }
+    },
+    "scorecard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "is_source_reported",
+        "is_business_score",
+        "overall",
+        "dimensions",
+        "lowest_dimension_explanation"
+      ],
+      "properties": {
+        "is_source_reported": {
+          "type": "boolean"
+        },
+        "is_business_score": {
+          "const": false
+        },
+        "overall": {
+          "$ref": "#/$defs/metric"
+        },
+        "dimensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/metric"
+          }
+        },
+        "lowest_dimension_explanation": {
+          "type": "string"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source_file",
+        "source_location",
+        "observed_fact",
+        "source_url",
+        "raw_value",
+        "denominator",
+        "verification"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^E[0-9]{2,3}$"
+        },
+        "source_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_location": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observed_fact": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "raw_value": {
+          "type": [
+            "string",
+            "number",
+            "null"
+          ]
+        },
+        "denominator": {
+          "$ref": "#/$defs/nullableNonnegativeInteger"
+        },
+        "verification": {
+          "enum": [
+            "direct_from_source",
+            "derived_from_source"
+          ]
+        }
+      }
+    },
+    "fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "evidence_ids"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_ids": {
+          "$ref": "#/$defs/refs"
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "priority",
+        "business_area",
+        "title",
+        "observed_fact",
+        "possible_business_effect",
+        "effect_level",
+        "recommended_action",
+        "acceptance_checks",
+        "needs_confirmation",
+        "evidence_ids"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^F[0-9]{2}$"
+        },
+        "priority": {
+          "enum": [
+            "P1",
+            "P2",
+            "P3"
+          ]
+        },
+        "business_area": {
+          "enum": [
+            "product_discoverability",
+            "product_understanding",
+            "inquiry",
+            "trust",
+            "technical_safety",
+            "accessibility"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observed_fact": {
+          "type": "string",
+          "minLength": 1
+        },
+        "possible_business_effect": {
+          "type": "string",
+          "minLength": 1
+        },
+        "effect_level": {
+          "enum": [
+            "INFERRED",
+            "NOT_CHECKED"
+          ]
+        },
+        "recommended_action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "acceptance_checks": {
+          "$ref": "#/$defs/strings"
+        },
+        "needs_confirmation": {
+          "$ref": "#/$defs/strings"
+        },
+        "evidence_ids": {
+          "$ref": "#/$defs/refs"
+        }
+      }
+    },
+    "buyerTask": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task",
+        "status",
+        "fact",
+        "what_is_not_known",
+        "evidence_ids"
+      ],
+      "properties": {
+        "task": {
+          "enum": [
+            "find_products",
+            "understand_products",
+            "contact_supplier"
+          ]
+        },
+        "status": {
+          "enum": [
+            "OBSERVED",
+            "INFERRED",
+            "NEEDS_CONFIRMATION",
+            "NOT_CHECKED"
+          ]
+        },
+        "fact": {
+          "type": "string",
+          "minLength": 1
+        },
+        "what_is_not_known": {
+          "type": "string"
+        },
+        "evidence_ids": {
+          "$ref": "#/$defs/refs"
+        }
+      }
+    },
+    "technicalNote": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "measured_fact",
+        "significance",
+        "evidence_ids"
+      ],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "measured_fact": {
+          "type": "string",
+          "minLength": 1
+        },
+        "significance": {
+          "type": "string"
+        },
+        "evidence_ids": {
+          "$ref": "#/$defs/refs"
+        }
+      }
+    },
+    "diagnosis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "headline",
+        "verdict",
+        "verdict_reason",
+        "verdict_evidence_ids",
+        "strengths",
+        "priority_findings",
+        "buyer_tasks",
+        "technical_notes",
+        "not_checked"
+      ],
+      "properties": {
+        "headline": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verdict": {
+          "enum": [
+            "targeted_optimization",
+            "further_verification",
+            "site_rebuild_assessment",
+            "no_urgent_action"
+          ]
+        },
+        "verdict_reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verdict_evidence_ids": {
+          "$ref": "#/$defs/refs"
+        },
+        "strengths": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/fact"
+          }
+        },
+        "priority_findings": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/finding"
+          }
+        },
+        "buyer_tasks": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/buyerTask"
+          }
+        },
+        "technical_notes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/technicalNote"
+          }
+        },
+        "not_checked": {
+          "$ref": "#/$defs/strings"
+        }
+      }
+    },
+    "visual": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "source_asset",
+        "caption",
+        "evidence_ids",
+        "visible_disclaimer"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^V[0-9]{2}$"
+        },
+        "type": {
+          "enum": [
+            "data_comparison",
+            "real_page_screenshot",
+            "proposed_improvement"
+          ]
+        },
+        "source_asset": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "caption": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_ids": {
+          "$ref": "#/$defs/refs"
+        },
+        "visible_disclaimer": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "conversion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offer_name",
+        "offer_scope",
+        "cta_label",
+        "cta_request",
+        "unpromised_fields"
+      ],
+      "properties": {
+        "offer_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "offer_scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cta_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cta_request": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unpromised_fields": {
+          "$ref": "#/$defs/strings"
+        }
+      }
+    },
+    "riskReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "conflicts",
+        "unsupported_claims_removed",
+        "manual_review_needed",
+        "manual_review_reasons"
+      ],
+      "properties": {
+        "conflicts": {
+          "$ref": "#/$defs/strings"
+        },
+        "unsupported_claims_removed": {
+          "$ref": "#/$defs/strings"
+        },
+        "manual_review_needed": {
+          "type": "boolean"
+        },
+        "manual_review_reasons": {
+          "$ref": "#/$defs/strings"
+        }
+      }
+    }
+  }
+}

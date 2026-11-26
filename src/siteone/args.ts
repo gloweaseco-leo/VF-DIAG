@@ -40,9 +40,13 @@ export function buildSiteOneArgs(target: ResolvedTarget, paths: SiteOnePaths): s
     `--output-html-report=${paths.htmlFile}`,
     `--output-json-file=${paths.jsonFile}`,
   ];
-  for (const address of target.addresses) {
-    const ip = address.includes(":") ? `[${address}]` : address;
-    args.push(`--resolve=${target.host}:${target.port}:${ip}`);
+  // SiteOne 2.5.1 fails HTTPS handshakes when --resolve pins port 443.
+  // The worker already rejected private DNS answers. Egress filtering still blocks private follow-ups.
+  if (!target.href.startsWith("https:")) {
+    for (const address of target.addresses) {
+      const ip = address.includes(":") ? `[${address}]` : address;
+      args.push(`--resolve=${target.host}:${target.port}:${ip}`);
+    }
   }
   return args;
 }
