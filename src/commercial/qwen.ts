@@ -99,7 +99,7 @@ export async function callQwen(options: {
   fetchImpl?: typeof fetch;
 }): Promise<{ analysis: unknown; receipt: QwenReceipt }> {
   const built = buildQwenPayload(options.cleanText);
-  const endpoint = qwenEndpoint(options.baseUrl ?? "https://dashscope.aliyuncs.com/compatible-mode/v1");
+  const endpoint = qwenEndpoint(options.baseUrl?.trim() || "https://dashscope.aliyuncs.com/compatible-mode/v1");
   const fetchImpl = options.fetchImpl ?? fetch;
   const response = await fetchImpl(endpoint, {
     method: "POST",

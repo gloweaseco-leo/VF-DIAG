@@ -27,6 +27,10 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends iptables \
   && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends chromium fonts-noto-cjk fontconfig \
+  && rm -rf /var/lib/apt/lists/*
+
 COPY docker/vfdiag-egress.sh /usr/local/bin/vfdiag-egress
 COPY docker/entrypoint.sh /usr/local/bin/vfdiag-entrypoint
 RUN chmod 755 /usr/local/bin/vfdiag-egress /usr/local/bin/vfdiag-entrypoint
@@ -42,7 +46,8 @@ ENV NODE_ENV=production \
     VFDIAG_PORT=8787 \
     VFDIAG_DATA_DIR=/var/lib/vfdiag \
     SITEONE_BIN=/usr/local/bin/siteone-crawler \
-    SITEONE_VERSION=2.5.1
+    SITEONE_VERSION=2.5.1 \
+    VFDIAG_CHROMIUM=/usr/bin/chromium
 
 EXPOSE 8787
 ENTRYPOINT ["vfdiag-entrypoint"]

@@ -102,14 +102,14 @@ Authorization: Bearer <VFDIAG_SERVICE_TOKEN>
 
 商业报告里的 `delivery.pdf.status` 保持 `PENDING_VEYFRONT_PRINT`。这份标记不随 PDF 字节变化，因此不会改写 `revision`。
 
-VF 持有唯一的 V2.1 打印页。VF-DIAG 在商业报告发布后，向已配置的 VF 源请求 PDF，并自己保存：
+VF 持有唯一的 V2.1 打印页。该页返回同源 HTML，不返回 PDF 字节。VF-DIAG 在商业报告发布后读取这一页，再用容器里的 Chromium 按打印样式生成 PDF 并保存：
 
 ```http
 GET {VFDIAG_PRINT_ORIGIN}/website-diagnosis/print
 Authorization: Bearer <VFDIAG_RENDER_TOKEN>
 X-VF-Job-Ref: {job_ref}
 X-VF-Report-Revision: {revision}
-Accept: application/pdf
+Accept: text/html
 ```
 
 打印地址必须是 HTTPS。本机联调可以是 `http://127.0.0.1` 或 `http://localhost`。凭据至少 32 位，并且和客户访问 VF-DIAG 的服务凭据分开。没有配置时，`pdf_reason` 为 `PDF_NOT_CONFIGURED`，在线报告仍然交付。

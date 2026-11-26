@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   CONTRACT_VERSION,
@@ -611,12 +611,20 @@ export function createJobService(options: {
   }
 
   async function readJob(jobRef: string): Promise<JobRecord | null> {
-    try {
-      const raw = await readFile(path.join(jobDir(jobRef), "job.json"), "utf8");
-      return JSON.parse(raw) as JobRecord;
-    } catch {
-      return null;
+    const file = path.join(jobDir(jobRef), "job.json");
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      try {
+        const raw = await readFile(file, "utf8");
+        if (!raw.trim()) throw new SyntaxError("empty job");
+        return JSON.parse(raw) as JobRecord;
+      } catch (error) {
+        const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+        if (code === "ENOENT") return null;
+        if (attempt === 7) return null;
+        await new Promise((resolve) => setTimeout(resolve, 20 * (attempt + 1)));
+      }
     }
+    return null;
   }
 
   async function writeJob(job: JobRecord): Promise<void> {
@@ -625,6 +633,16 @@ export function createJobService(options: {
     const temp = path.join(dir, `job.${randomBytes(4).toString("hex")}.tmp`);
     const finalPath = path.join(dir, "job.json");
     await writeFile(temp, JSON.stringify(job));
+    try {
+      await rename(temp, finalPath);
+      return;
+    } catch (error) {
+      const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+      if (code !== "EPERM" && code !== "EBUSY" && code !== "EEXIST") {
+        await rm(temp, { force: true });
+        throw error;
+      }
+    }
     let lastError: unknown;
     for (let attempt = 0; attempt < 5; attempt += 1) {
       try {

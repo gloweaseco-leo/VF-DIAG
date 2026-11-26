@@ -34,7 +34,7 @@ const jobs = createJobService({
     return records.map((record) => record.address);
   },
   run: (options) => runSiteOne({ ...options, bin: siteoneBin }),
-  analyze: qwenKey ? createProductionAnalyzer({ apiKey: qwenKey, baseUrl: process.env.VFDIAG_QWEN_BASE_URL }) : undefined,
+  analyze: qwenKey ? createProductionAnalyzer({ apiKey: qwenKey, baseUrl: process.env.VFDIAG_QWEN_BASE_URL?.trim() || undefined }) : undefined,
   renderPdf: printOrigin && renderToken && renderToken.length >= 32
     ? (input) => fetchPrintPdf({ ...input, origin: printOrigin, token: renderToken })
     : undefined,

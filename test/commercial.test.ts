@@ -199,6 +199,20 @@ test("print delivery accepts only the VF PDF response", async () => {
     },
   });
   assert.equal(bytes.subarray(0, 5).toString("utf8"), "%PDF-");
+  const printed = await fetchPrintPdf({
+    origin: "https://print.example",
+    token: "render-token-at-least-32-characters",
+    jobRef: "job-ref-01",
+    revision: "abc",
+    signal: AbortSignal.timeout(1000),
+    fetchImpl: async () => new Response("<html><head></head><body>打印</body></html>", { status: 200, headers: { "content-type": "text/html; charset=utf-8" } }),
+    printHtml: async (html) => {
+      assert.match(html, /<base href="https:\/\/print\.example\/">/);
+      assert.match(html, /打印/);
+      return Buffer.from("%PDF-1.4\n");
+    },
+  });
+  assert.equal(printed.subarray(0, 5).toString("utf8"), "%PDF-");
   await assert.rejects(
     () => fetchPrintPdf({
       origin: "http://print.example",
