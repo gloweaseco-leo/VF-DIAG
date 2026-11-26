@@ -9,6 +9,10 @@ services:
       VFDIAG_SERVICE_TOKEN: ${VFDIAG_SERVICE_TOKEN:-local-docker-dev-token-change-me}
       VFDIAG_LOCAL_ONLY: "1"
       VFDIAG_SYNTHETIC_HOSTS: ""
+      VFDIAG_QWEN_API_KEY: ${VFDIAG_QWEN_API_KEY:-}
+      VFDIAG_QWEN_BASE_URL: ${VFDIAG_QWEN_BASE_URL:-}
+      VFDIAG_PRINT_ORIGIN: ${VFDIAG_PRINT_ORIGIN:-}
+      VFDIAG_RENDER_TOKEN: ${VFDIAG_RENDER_TOKEN:-}
     volumes:
       - vfdiag-data:/var/lib/vfdiag
     networks:

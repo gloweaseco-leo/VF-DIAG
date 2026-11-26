@@ -128,6 +128,6 @@ BFF必须执行同源/CSRF、用户会话、最小频率限制、脱敏错误映
 
 ## 9. 商业报告数据（2026-11-26 增补）
 
-扫描之后，VF-DIAG 可以用 Qwen4-Max 和 Skill V0.3 生成第二份数据：`GET /v1/jobs/:ref/commercial-report`。字段、状态和 PDF 分工见 [商业报告数据契约 V1](VF_DIAG_COMMERCIAL_REPORT_V1.md)。原有 `/report` 技术投影不变。
+扫描之后，VF-DIAG 可以用 Qwen4-Max 和 Skill V0.3 生成第二份数据：`GET /v1/jobs/:ref/commercial-report`。任务状态上补充 `customer_report_available`、`customer_report_reason`、`customer_report_revision`、`commercial_contract_version`、`pdf_available` 和 `pdf_reason`。PDF 由 VF-DIAG 向 VF 的 `/website-diagnosis/print` 请求后保存，失败时 `POST /v1/jobs/:ref/pdf` 单独重试。字段和授权见 [商业报告数据契约 V1](VF_DIAG_COMMERCIAL_REPORT_V1.md)。原有 `/report` 技术投影不变。
 
 PDF 仍由 VEYFRONT 用 V2.1 打印样式生成。VF-DIAG 只提供数据和 `pdf.status = PENDING_VEYFRONT_PRINT`。这一步还没有跨仓联调。

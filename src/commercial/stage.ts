@@ -25,15 +25,22 @@ export async function produceCommercial(options: {
   siteoneText: string;
   html: string | null;
   host: string;
+  jobRef: string;
+  synthetic: boolean;
   generatedAt: string;
   signal: AbortSignal;
   analyze?: Analyzer;
+  blocked?: { code: string; message: string };
 }): Promise<{ available: boolean; code: string | null }> {
   const sha = createHash("sha256").update(options.siteoneText).digest("hex");
   const existing = await readJson(path.join(options.dir, "analysis.json"));
   const previous = await readReceipt(options.dir);
   if (existing && previous?.siteone_sha256 === sha && previous.valid) {
     return writeReport(options, existing, sha, true, previous.model_receipt);
+  }
+  if (options.blocked) {
+    await writeError(options.dir, options.blocked.code, options.blocked.message);
+    return { available: false, code: options.blocked.code };
   }
   if (previous?.siteone_sha256 === sha && previous.request_sent && !previous.valid) {
     await writeError(options.dir, "MODEL_INTERRUPTED", "上次模型调用没有留下可用分析，为避免重复付费，没有再次调用。");
@@ -65,7 +72,7 @@ export async function produceCommercial(options: {
 }
 
 async function writeReport(
-  options: { dir: string; siteone: SiteOneJson; host: string; generatedAt: string; html: string | null },
+  options: { dir: string; siteone: SiteOneJson; host: string; generatedAt: string; html: string | null; jobRef?: string; synthetic?: boolean },
   analysis: unknown,
   sha: string,
   reused: boolean,
@@ -83,7 +90,13 @@ async function writeReport(
     return { available: false, code: "SOURCE_MISMATCH" };
   }
   const scale = options.html ? deriveScoreScale(options.html) : null;
-  const composed = composeCommercialReport({ analysis, generatedAt: options.generatedAt, scoreScale: scale });
+  const composed = composeCommercialReport({
+    analysis,
+    generatedAt: options.generatedAt,
+    jobRef: options.jobRef,
+    synthetic: options.synthetic,
+    scoreScale: scale,
+  });
   if (!composed.ok) {
     await fail(options.dir, sha, reused, modelReceipt, composed.code, composed.message);
     return { available: false, code: composed.code };

@@ -2,6 +2,7 @@ import { lookup } from "node:dns/promises";
 import path from "node:path";
 import { assertServiceToken } from "./http/request.ts";
 import { createHttpServer } from "./http/server.ts";
+import { fetchPrintPdf } from "./commercial/pdf.ts";
 import { createProductionAnalyzer } from "./commercial/qwen.ts";
 import { createJobService } from "./jobs/service.ts";
 import { runSiteOne } from "./siteone/run.ts";
@@ -23,6 +24,8 @@ const syntheticHosts = new Set(
 );
 
 const qwenKey = process.env.VFDIAG_QWEN_API_KEY;
+const printOrigin = process.env.VFDIAG_PRINT_ORIGIN;
+const renderToken = process.env.VFDIAG_RENDER_TOKEN;
 const jobs = createJobService({
   dataDir,
   syntheticHosts,
@@ -32,6 +35,9 @@ const jobs = createJobService({
   },
   run: (options) => runSiteOne({ ...options, bin: siteoneBin }),
   analyze: qwenKey ? createProductionAnalyzer({ apiKey: qwenKey, baseUrl: process.env.VFDIAG_QWEN_BASE_URL }) : undefined,
+  renderPdf: printOrigin && renderToken && renderToken.length >= 32
+    ? (input) => fetchPrintPdf({ ...input, origin: printOrigin, token: renderToken })
+    : undefined,
 });
 
 await jobs.recover();

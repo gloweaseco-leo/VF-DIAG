@@ -11,6 +11,7 @@ import {
   WALL_CLOCK_MS,
 } from "../constants.ts";
 import type { CreateJobBody } from "../http/request.ts";
+import { PdfRenderError } from "../commercial/pdf.ts";
 import { MODEL_TIMEOUT_MS } from "../commercial/qwen.ts";
 import { produceCommercial, type Analyzer } from "../commercial/stage.ts";
 import { projectReport } from "../report/project.ts";
@@ -56,6 +57,12 @@ export type JobRecord = {
   reason_code: string | null;
   reason: string | null;
   report_available: boolean;
+  model_authorized: boolean;
+  customer_report_available: boolean;
+  customer_report_reason: string | null;
+  customer_report_revision: string | null;
+  pdf_available: boolean;
+  pdf_reason: string | null;
   engine_version: typeof ENGINE_VERSION;
 };
 
@@ -71,10 +78,18 @@ export type JobStatus = {
   reason: string | null;
   poll_after_seconds: number;
   report_available: boolean;
+  customer_report_available: boolean;
+  customer_report_reason: string | null;
+  customer_report_revision: string | null;
+  commercial_contract_version: "vfdiag.commercial-report.v1" | null;
+  pdf_available: boolean;
+  pdf_reason: string | null;
   target_host: string | null;
   synthetic: boolean;
   report_language: "zh";
 };
+
+export type PdfRenderer = (input: { jobRef: string; revision: string; signal: AbortSignal }) => Promise<Buffer>;
 
 type Runner = (options: {
   target: ResolvedTarget;
@@ -93,6 +108,7 @@ export function createJobService(options: {
   run: Runner;
   now?: () => Date;
   analyze?: Analyzer;
+  renderPdf?: PdfRenderer;
 }) {
   const now = options.now ?? (() => new Date());
   const jobsDir = path.join(options.dataDir, "jobs");
@@ -118,6 +134,12 @@ export function createJobService(options: {
       if (Date.parse(job.expires_at) <= now().getTime()) {
         await expire(job);
         continue;
+      }
+      if ((job.state === "complete" || job.state === "partial") && job.pdf_reason === "PDF_PENDING" && job.customer_report_revision) {
+        const revision = job.customer_report_revision;
+        queueMicrotask(() => {
+          void storePdf(job.job_ref, jobDir(job.job_ref), revision, AbortSignal.timeout(120_000));
+        });
       }
       if (ACTIVE.has(job.state)) {
         if (job.state === "summarizing" && (await readFile(path.join(jobDir(job.job_ref), "report.json"), "utf8").catch(() => null))) {
@@ -183,6 +205,12 @@ export function createJobService(options: {
         reason_code: null,
         reason: null,
         report_available: false,
+        model_authorized: body.model_authorized === true,
+        customer_report_available: false,
+        customer_report_reason: null,
+        customer_report_revision: null,
+        pdf_available: false,
+        pdf_reason: null,
         engine_version: ENGINE_VERSION,
       };
       await writeJob(job);
@@ -332,15 +360,24 @@ export function createJobService(options: {
     const timeout = AbortSignal.timeout(MODEL_TIMEOUT_MS);
     const signal = AbortSignal.any([controller.signal, timeout]);
     try {
+      const currentJob = await readJob(jobRef);
+      const blocked = currentJob?.synthetic && currentJob.model_authorized
+        ? { code: "COMMERCIAL_SYNTHETIC", message: "合成测试不调用付费模型。" }
+        : currentJob?.model_authorized
+          ? undefined
+          : { code: "MODEL_NOT_AUTHORIZED", message: "这次授权只覆盖公开页面扫描，不能据此调用模型。" };
       await produceCommercial({
         dir,
         siteone: parsed,
         siteoneText: jsonText,
         html,
         host,
+        jobRef,
+        synthetic: currentJob?.synthetic === true,
         generatedAt: now().toISOString(),
         signal,
-        analyze: options.analyze,
+        analyze: blocked ? undefined : options.analyze,
+        blocked,
       });
     } catch (error) {
       if (controller.signal.aborted) {
@@ -362,14 +399,51 @@ export function createJobService(options: {
     }
     const meta = JSON.parse(await readFile(path.join(dir, "scan-meta.json"), "utf8").catch(() => "{}")) as { exitCode?: number | null; checked_pages?: number };
     const early = meta.exitCode !== 0 && meta.exitCode !== undefined && meta.exitCode !== null;
+    const commercial = await readCommercial(dir);
     await update(jobRef, {
       state: early ? "partial" : "complete",
       checked_pages: typeof meta.checked_pages === "number" ? meta.checked_pages : null,
       report_available: true,
       reason_code: early ? "ENGINE_EXIT_NONZERO" : null,
       reason: early ? "扫描进程非正常结束，报告只覆盖已经写下的结果。" : null,
+      customer_report_available: commercial.available,
+      customer_report_reason: commercial.reason,
+      customer_report_revision: commercial.revision,
+      pdf_available: false,
+      pdf_reason: commercial.available ? (options.renderPdf ? "PDF_PENDING" : "PDF_NOT_CONFIGURED") : null,
     });
     aborts.delete(jobRef);
+    if (commercial.available && commercial.revision && options.renderPdf) {
+      await storePdf(jobRef, dir, commercial.revision, AbortSignal.timeout(120_000));
+    }
+  }
+
+  async function storePdf(jobRef: string, dir: string, revision: string, signal: AbortSignal): Promise<void> {
+    if (!options.renderPdf) {
+      await update(jobRef, { pdf_available: false, pdf_reason: "PDF_NOT_CONFIGURED" });
+      return;
+    }
+    try {
+      const bytes = await options.renderPdf({ jobRef, revision, signal });
+      await writeFile(path.join(dir, "commercial.pdf"), bytes);
+      await writeFile(path.join(dir, "commercial.pdf.revision"), revision);
+      await update(jobRef, { pdf_available: true, pdf_reason: null });
+    } catch (error) {
+      const code = error instanceof PdfRenderError ? error.code : "PDF_FAILED";
+      await update(jobRef, { pdf_available: false, pdf_reason: code });
+    }
+  }
+
+  async function readCommercial(dir: string): Promise<{ available: boolean; reason: string | null; revision: string | null }> {
+    const ready = await readFile(path.join(dir, "commercial-report.json"), "utf8").catch(() => null);
+    if (ready) {
+      const body = JSON.parse(ready) as { revision?: unknown };
+      return { available: true, reason: null, revision: typeof body.revision === "string" ? body.revision : null };
+    }
+    const failed = await readFile(path.join(dir, "commercial-error.json"), "utf8").catch(() => null);
+    if (!failed) return { available: false, reason: "COMMERCIAL_NOT_READY", revision: null };
+    const body = JSON.parse(failed) as { code?: unknown };
+    return { available: false, reason: typeof body.code === "string" ? body.code : "COMMERCIAL_NOT_READY", revision: null };
   }
 
   async function get(jobRef: string): Promise<{ status: number; body: unknown }> {
@@ -388,13 +462,18 @@ export function createJobService(options: {
     return { status: 200, body: JSON.parse(raw) as CustomerReport };
   }
 
-  async function commercialReport(jobRef: string): Promise<{ status: number; body: unknown }> {
+  async function commercialReport(jobRef: string, revision?: string | null): Promise<{ status: number; body: unknown }> {
     const job = await loadVisible(jobRef);
     if (!job) return error(404, "JOB_NOT_FOUND", "任务不存在。");
+    if (job.state === "cancelled") return error(409, "CANCELLED", "任务已取消，商业报告不交付。");
     if (job.state === "expired") return error(410, "EXPIRED", "报告已过期。");
     const dir = jobDir(jobRef);
     const ready = await readFile(path.join(dir, "commercial-report.json"), "utf8").catch(() => null);
-    if (ready) return { status: 200, body: JSON.parse(ready) as unknown };
+    if (ready) {
+      const body = JSON.parse(ready) as { revision?: unknown };
+      if (revision && body.revision !== revision) return error(409, "REVISION_MISMATCH", "请求的报告版本与已发布版本不一致。");
+      return { status: 200, body };
+    }
     if (ACTIVE.has(job.state)) return error(409, "COMMERCIAL_PENDING", "商业报告还在生成。");
     const failed = await readFile(path.join(dir, "commercial-error.json"), "utf8").catch(() => null);
     if (failed) {
@@ -404,11 +483,38 @@ export function createJobService(options: {
     return error(409, "COMMERCIAL_NOT_READY", "商业报告没有生成。");
   }
 
-  async function artifact(jobRef: string, kind: string): Promise<{ status: number; body: Buffer; contentType: string; filename: string } | { status: number; body: unknown }> {
-    if (kind !== "html" && kind !== "json") return error(404, "ARTIFACT_NOT_FOUND", "没有这种工件。");
+  async function retryPdf(jobRef: string): Promise<{ status: number; body: unknown }> {
     const job = await loadVisible(jobRef);
     if (!job) return error(404, "JOB_NOT_FOUND", "任务不存在。");
+    if (job.state === "cancelled") return error(409, "CANCELLED", "任务已取消，不能生成 PDF。");
     if (job.state === "expired") return error(410, "EXPIRED", "报告已过期。");
+    if (!job.customer_report_available || !job.customer_report_revision) {
+      return error(409, "COMMERCIAL_NOT_READY", "在线商业报告还没有发布，不能生成 PDF。");
+    }
+    if (job.pdf_available) return { status: 200, body: toStatus(job) };
+    await update(jobRef, { pdf_reason: options.renderPdf ? "PDF_PENDING" : "PDF_NOT_CONFIGURED", pdf_available: false });
+    await storePdf(jobRef, jobDir(jobRef), job.customer_report_revision, AbortSignal.timeout(120_000));
+    const latest = await readJob(jobRef);
+    return { status: 200, body: toStatus(latest ?? job) };
+  }
+
+  async function artifact(jobRef: string, kind: string, revision?: string | null): Promise<{ status: number; body: Buffer; contentType: string; filename: string } | { status: number; body: unknown }> {
+    if (kind !== "html" && kind !== "json" && kind !== "pdf") return error(404, "ARTIFACT_NOT_FOUND", "没有这种工件。");
+    const job = await loadVisible(jobRef);
+    if (!job) return error(404, "JOB_NOT_FOUND", "任务不存在。");
+    if (job.state === "cancelled") return error(409, "CANCELLED", "任务已取消，工件不交付。");
+    if (job.state === "expired") return error(410, "EXPIRED", "报告已过期。");
+    if (kind === "pdf") {
+      if (!job.pdf_available) return error(409, job.pdf_reason ?? "PDF_NOT_READY", "PDF 还没有生成。");
+      const stored = await readFile(path.join(jobDir(jobRef), "commercial.pdf.revision"), "utf8").catch(() => "");
+      if (revision && revision !== stored.trim()) return error(409, "REVISION_MISMATCH", "请求的 PDF 版本与已保存版本不一致。");
+      try {
+        const body = await readFile(path.join(jobDir(jobRef), "commercial.pdf"));
+        return { status: 200, body, contentType: "application/pdf", filename: "commercial.pdf", revision: stored.trim() };
+      } catch {
+        return error(404, "ARTIFACT_NOT_FOUND", "PDF 文件不存在。");
+      }
+    }
     if (!job.report_available) return error(409, "REPORT_NOT_READY", "工件还没有生成。");
     try {
       const filename = kind === "html" ? "siteone.html" : "siteone.json";
@@ -431,7 +537,16 @@ export function createJobService(options: {
       if (job.state === "expired") return error(410, "EXPIRED", "报告已过期。");
       if (TERMINAL.has(job.state)) return { status: 200, body: toStatus(job) };
       aborts.get(jobRef)?.abort();
-      const next = await update(jobRef, { state: "cancelled", reason_code: "CANCELLED", reason: "扫描已取消。", report_available: false });
+      const next = await update(jobRef, {
+        state: "cancelled",
+        reason_code: "CANCELLED",
+        reason: "扫描已取消。",
+        report_available: false,
+        customer_report_available: false,
+        customer_report_reason: "CANCELLED",
+        pdf_available: false,
+        pdf_reason: "CANCELLED",
+      });
       return { status: 202, body: toStatus(next) };
     });
   }
@@ -458,7 +573,7 @@ export function createJobService(options: {
   async function purgeArtifacts(jobRef: string): Promise<void> {
     const dir = jobDir(jobRef);
     await Promise.all(
-      ["siteone.html", "siteone.json", "report.json", "scan-meta.json", "analysis.json", "commercial-report.json", "commercial-receipt.json", "commercial-error.json"].map((name) => rm(path.join(dir, name), { force: true })),
+      ["siteone.html", "siteone.json", "report.json", "scan-meta.json", "analysis.json", "commercial-report.json", "commercial-receipt.json", "commercial-error.json", "commercial.pdf", "commercial.pdf.revision"].map((name) => rm(path.join(dir, name), { force: true })),
     );
   }
 
@@ -527,7 +642,7 @@ export function createJobService(options: {
     throw lastError;
   }
 
-  return { recover, create, get, report, commercialReport, artifact, cancel };
+  return { recover, create, get, report, commercialReport, retryPdf, artifact, cancel };
 }
 
 export function noWorkingResponse(siteone: SiteOneJson): boolean {
@@ -555,6 +670,12 @@ function toStatus(job: JobRecord): JobStatus {
     reason: job.reason,
     poll_after_seconds: ACTIVE.has(job.state) ? 2 : 0,
     report_available: job.report_available,
+    customer_report_available: job.customer_report_available === true,
+    customer_report_reason: job.customer_report_reason ?? null,
+    customer_report_revision: job.customer_report_revision ?? null,
+    commercial_contract_version: job.customer_report_available === true ? "vfdiag.commercial-report.v1" : null,
+    pdf_available: job.pdf_available === true,
+    pdf_reason: job.pdf_reason ?? null,
     target_host: job.target_host,
     synthetic: job.synthetic,
     report_language: "zh",

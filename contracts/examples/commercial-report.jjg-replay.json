@@ -1,5 +1,8 @@
 {
   "contract_version": "vfdiag.commercial-report.v1",
+  "job_ref": "",
+  "revision": "a783a32968ddb79b2c50b6b2e11db8b496eb8f181cd0fd5244158838a42ad330",
+  "synthetic": false,
   "report_language": "zh",
   "generated_at": "2026-11-26T00:00:00.000Z",
   "subject": {

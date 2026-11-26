@@ -4,9 +4,12 @@
   "title": "VF-DIAG commercial report v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["contract_version", "report_language", "generated_at", "subject", "delivery", "overview", "chapters", "visuals", "next_step", "technical_appendix", "evidence"],
+  "required": ["contract_version", "job_ref", "revision", "synthetic", "report_language", "generated_at", "subject", "delivery", "overview", "chapters", "visuals", "next_step", "technical_appendix", "evidence"],
   "properties": {
     "contract_version": { "const": "vfdiag.commercial-report.v1" },
+    "job_ref": { "type": "string" },
+    "revision": { "type": "string" },
+    "synthetic": { "type": "boolean" },
     "report_language": { "const": "zh" },
     "generated_at": { "type": "string" },
     "subject": { "type": "object" },

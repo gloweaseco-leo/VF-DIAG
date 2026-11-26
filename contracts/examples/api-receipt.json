@@ -2,7 +2,14 @@
   "authorization": {
     "version": "2026-11-22",
     "statement": "我确认对该网站拥有管理权限，或已获得网站管理者授权进行公开页面诊断。",
-    "text_hash": "bafcdc7c13a5fe5e81264bd48964f92b817ab062e82cf31b7f5a3e15a89bf0ee"
+    "text_hash": "bafcdc7c13a5fe5e81264bd48964f92b817ab062e82cf31b7f5a3e15a89bf0ee",
+    "covers": "公开页面扫描"
+  },
+  "model_authorization": {
+    "version": "2026-11-26-growth-candidate",
+    "statement": "我确认对该网站拥有管理权限，或已获得网站管理者授权进行公开页面诊断；同意将本次获准公开页面的检测报告及必要摘录提交阿里云百炼 Qwen4-Max 模型处理，用于生成海外获客诊断报告。",
+    "text_hash": "c82d0aadbf2e602609b6b1467d2736a9a593b1b6891691d62dff2a903ce6fc7a",
+    "covers": "公开页面扫描和 Qwen4-Max 处理"
   },
   "error_shape": "error.code",
   "remaining_unknown": true,
@@ -57,6 +64,12 @@
         "reason": null,
         "poll_after_seconds": 2,
         "report_available": false,
+        "customer_report_available": false,
+        "customer_report_reason": null,
+        "customer_report_revision": null,
+        "commercial_contract_version": null,
+        "pdf_available": false,
+        "pdf_reason": null,
         "target_host": null,
         "synthetic": false,
         "report_language": "zh"
@@ -90,6 +103,12 @@
         "reason": "目标地址落在私网、回环或链路本地范围。",
         "poll_after_seconds": 0,
         "report_available": false,
+        "customer_report_available": false,
+        "customer_report_reason": null,
+        "customer_report_revision": null,
+        "commercial_contract_version": null,
+        "pdf_available": false,
+        "pdf_reason": null,
         "target_host": null,
         "synthetic": false,
         "report_language": "zh"
@@ -123,6 +142,12 @@
         "reason": null,
         "poll_after_seconds": 2,
         "report_available": false,
+        "customer_report_available": false,
+        "customer_report_reason": null,
+        "customer_report_revision": null,
+        "commercial_contract_version": null,
+        "pdf_available": false,
+        "pdf_reason": null,
         "target_host": null,
         "synthetic": false,
         "report_language": "zh"
@@ -156,6 +181,12 @@
         "reason": null,
         "poll_after_seconds": 0,
         "report_available": true,
+        "customer_report_available": false,
+        "customer_report_reason": "MODEL_NOT_AUTHORIZED",
+        "customer_report_revision": null,
+        "commercial_contract_version": null,
+        "pdf_available": false,
+        "pdf_reason": null,
         "target_host": "factory.example",
         "synthetic": false,
         "report_language": "zh"
@@ -480,6 +511,12 @@
         "reason": null,
         "poll_after_seconds": 2,
         "report_available": false,
+        "customer_report_available": false,
+        "customer_report_reason": null,
+        "customer_report_revision": null,
+        "commercial_contract_version": null,
+        "pdf_available": false,
+        "pdf_reason": null,
         "target_host": null,
         "synthetic": false,
         "report_language": "zh"
@@ -513,6 +550,12 @@
         "reason": "扫描已取消。",
         "poll_after_seconds": 0,
         "report_available": false,
+        "customer_report_available": false,
+        "customer_report_reason": "CANCELLED",
+        "customer_report_revision": null,
+        "commercial_contract_version": null,
+        "pdf_available": false,
+        "pdf_reason": "CANCELLED",
         "target_host": null,
         "synthetic": false,
         "report_language": "zh"

@@ -50,7 +50,7 @@ async function handle(
     return;
   }
 
-  const jobMatch = path.match(/^\/v1\/jobs\/([A-Za-z0-9_-]{8,80})(\/report|\/commercial-report|\/cancel|\/artifacts\/(html|json))?$/);
+  const jobMatch = path.match(/^\/v1\/jobs\/([A-Za-z0-9_-]{8,80})(\/report|\/commercial-report|\/pdf|\/cancel|\/artifacts\/(html|json|pdf))?$/);
   if (req.method === "POST" && path === "/v1/jobs") {
     const parsed = parseCreateJob(await readJson(req));
     if (!parsed.ok) {
@@ -83,13 +83,18 @@ async function handle(
     return;
   }
   if (req.method === "GET" && suffix === "/commercial-report") {
-    const result = await options.jobs.commercialReport(jobRef);
+    const result = await options.jobs.commercialReport(jobRef, url.searchParams.get("revision"));
     respond(result.status, result.body);
     return;
   }
-  const artifact = suffix.match(/^\/artifacts\/(html|json)$/);
+  if (req.method === "POST" && suffix === "/pdf") {
+    const result = await options.jobs.retryPdf(jobRef);
+    respond(result.status, result.body);
+    return;
+  }
+  const artifact = suffix.match(/^\/artifacts\/(html|json|pdf)$/);
   if (req.method === "GET" && artifact) {
-    const result = await options.jobs.artifact(jobRef, artifact[1]);
+    const result = await options.jobs.artifact(jobRef, artifact[1], url.searchParams.get("revision"));
     if ("contentType" in result) {
       res.writeHead(200, {
         "content-type": result.contentType,
@@ -97,6 +102,7 @@ async function handle(
         "cache-control": "no-store",
         "x-content-type-options": "nosniff",
         "referrer-policy": "no-referrer",
+        ...(result.revision ? { "x-report-revision": result.revision } : {}),
       });
       console.log(accessLog(req.method, path, 200, options.token));
       res.end(result.body);

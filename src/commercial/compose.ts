@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { ScoreScale } from "./score-scale.ts";
 
 const VERDICTS = ["targeted_optimization", "further_verification", "site_rebuild_assessment", "no_urgent_action"] as const;
@@ -24,6 +25,9 @@ const TASK_TITLE: Record<string, string> = {
 
 export type CommercialReport = {
   contract_version: "vfdiag.commercial-report.v1";
+  job_ref: string;
+  revision: string;
+  synthetic: boolean;
   report_language: "zh";
   generated_at: string;
   subject: {
@@ -108,6 +112,7 @@ type Analysis = {
     headline: string;
     verdict: Verdict;
     verdict_reason: string;
+    verdict_evidence_ids?: string[];
     strengths: Array<{ text: string; evidence_ids: string[] }>;
     priority_findings: Array<{
       id: string;
@@ -137,6 +142,8 @@ export type ComposeResult =
 export function composeCommercialReport(input: {
   analysis: unknown;
   generatedAt: string;
+  jobRef?: string;
+  synthetic?: boolean;
   scoreScale?: ScoreScale | null;
 }): ComposeResult {
   const parsed = parseAnalysis(input.analysis);
@@ -145,24 +152,49 @@ export function composeCommercialReport(input: {
   const known = new Set(analysis.evidence_index.map((item) => item.id));
   const dropped: string[] = [];
   const keepRefs = (ids: string[], label: string): boolean => {
-    if (ids.every((id) => known.has(id))) return true;
-    dropped.push(`${label} 引用了材料里没有的证据，已从客户报告去掉。`);
-    return false;
-  };
-  const keepText = (text: string, label: string): boolean => {
-    if (!unsupportedClaim(text)) return true;
-    dropped.push(`${label} 含有材料不能支持的流量、排名、询盘或收入表述，已从客户报告去掉。`);
+    if (ids.length > 0 && ids.every((id) => known.has(id))) return true;
+    dropped.push(`${label} 没有可回查的证据，已从客户报告去掉。`);
     return false;
   };
 
-  const findings = analysis.diagnosis.priority_findings.filter((item) => {
-    const blob = [item.title, item.observed_fact, item.possible_business_effect, item.recommended_action].join("\n");
-    return keepRefs(item.evidence_ids, item.id) && keepText(blob, item.id);
+  const findings = analysis.diagnosis.priority_findings.flatMap((item) => {
+    if (!keepRefs(item.evidence_ids, item.id)) return [];
+    const title = scrubClaims(item.title);
+    const observed = scrubClaims(item.observed_fact);
+    const effect = scrubClaims(item.possible_business_effect);
+    const action = scrubClaims(item.recommended_action);
+    if (!title || !observed) {
+      dropped.push(`${item.id} 去掉材料不能支持的表述后没有可核实事实，已从客户报告去掉。`);
+      return [];
+    }
+    return [{ ...item, title, observed_fact: observed, possible_business_effect: effect, recommended_action: action }];
   });
-  const strengths = analysis.diagnosis.strengths.filter((item, index) => keepRefs(item.evidence_ids, `strength-${index}`) && keepText(item.text, `strength-${index}`));
-  const thin = analysis.source_profile.data_sufficiency === "unusable" || analysis.source_profile.http_200 === 0 || (findings.length === 0 && strengths.length === 0);
+  const strengths = analysis.diagnosis.strengths.flatMap((item, index) => {
+    if (!keepRefs(item.evidence_ids, `strength-${index}`)) return [];
+    const text = scrubClaims(item.text);
+    if (!text) {
+      dropped.push(`strength-${index} 去掉材料不能支持的表述后没有事实，已从客户报告去掉。`);
+      return [];
+    }
+    return [{ text, evidence_ids: item.evidence_ids }];
+  });
+  const verdictIds = analysis.diagnosis.verdict_evidence_ids ?? [];
+  const verdictBacked = verdictIds.length > 0 && verdictIds.every((id) => known.has(id));
+  const limited = analysis.source_profile.data_sufficiency === "unusable" || analysis.source_profile.http_200 === 0;
   let verdict = analysis.diagnosis.verdict;
-  if (thin && verdict === "site_rebuild_assessment") verdict = "further_verification";
+  if (!verdictBacked && verdict !== "no_urgent_action" && verdict !== "further_verification") {
+    dropped.push("首屏判断没有完整证据引用，已改为先核实。");
+    verdict = "further_verification";
+  }
+  if (limited && verdict === "site_rebuild_assessment") verdict = "further_verification";
+  let headline = scrubClaims(analysis.diagnosis.headline);
+  let verdictReason = scrubClaims(analysis.diagnosis.verdict_reason);
+  for (const item of analysis.diagnosis.priority_findings) {
+    if (findings.some((kept) => kept.id === item.id)) continue;
+    headline = removeMention(headline, item.title);
+    verdictReason = removeMention(verdictReason, item.title);
+  }
+  if (!headline) headline = VERDICT_LABEL[verdict];
 
   const chapters = CHAPTERS.map((chapter) => ({
     id: chapter.id,
@@ -188,6 +220,9 @@ export function composeCommercialReport(input: {
   const scale = input.scoreScale ?? null;
   const report: CommercialReport = {
     contract_version: "vfdiag.commercial-report.v1",
+    job_ref: input.jobRef ?? "",
+    revision: "",
+    synthetic: input.synthetic ?? false,
     report_language: "zh",
     generated_at: input.generatedAt,
     subject: {
@@ -199,7 +234,7 @@ export function composeCommercialReport(input: {
       scope_summary: customerText(analysis.source_profile.scope_summary),
       limitations: analysis.source_profile.limitations.map(customerText),
       data_sufficiency: analysis.source_profile.data_sufficiency,
-      limited: thin,
+      limited,
     },
     delivery: {
       profile: "veyfront.overseas-acquisition.v2.1",
@@ -207,36 +242,42 @@ export function composeCommercialReport(input: {
       pdf: { producer: "VEYFRONT", status: "PENDING_VEYFRONT_PRINT", visual_system: "veyfront.report.v2.1" },
     },
     overview: {
-      headline: customerText(analysis.diagnosis.headline),
+      headline: customerText(headline),
       verdict,
       verdict_label: VERDICT_LABEL[verdict],
-      verdict_reason: thin
-        ? `本次证据只够做有限范围的说明。${customerText(analysis.diagnosis.verdict_reason)}`
-        : customerText(analysis.diagnosis.verdict_reason),
+      verdict_reason: limited
+        ? `本次证据只够做有限范围的说明。${customerText(verdictReason)}`
+        : customerText(verdictReason),
       strengths: strengths.map((item) => ({ text: customerText(item.text), evidence_ids: item.evidence_ids })),
-      buyer_tasks: analysis.diagnosis.buyer_tasks
-        .filter((item) => keepRefs(item.evidence_ids, item.task) && keepText(item.fact, item.task))
-        .map((item) => ({
+      buyer_tasks: analysis.diagnosis.buyer_tasks.flatMap((item) => {
+        if (!keepRefs(item.evidence_ids, item.task)) return [];
+        const fact = scrubClaims(item.fact);
+        if (!fact) return [];
+        return [{
           task: item.task,
           title: TASK_TITLE[item.task] ?? item.task,
           status: item.status,
-          fact: customerText(item.fact),
+          fact: customerText(fact),
           unknown: customerText(item.what_is_not_known),
           evidence_ids: item.evidence_ids,
-        })),
+        }];
+      }),
     },
     chapters,
-    visuals: analysis.visual_plan
-      .filter((item) => keepRefs(item.evidence_ids, item.id) && keepText(item.caption, item.id))
-      .map((item) => ({
+    visuals: analysis.visual_plan.flatMap((item) => {
+      if (!keepRefs(item.evidence_ids, item.id)) return [];
+      const caption = scrubClaims(item.caption);
+      if (!caption) return [];
+      return [{
         id: item.id,
         type: item.type,
-        caption: customerText(item.caption),
+        caption: customerText(caption),
         disclaimer: customerText(item.visible_disclaimer),
         evidence_ids: item.evidence_ids,
         asset_available: item.type === "real_page_screenshot" && typeof item.source_asset === "string" && item.source_asset.length > 0,
-      })),
-    next_step: thin
+      }];
+    }),
+    next_step: limited
       ? {
           offer_name: "有限范围的网站事实说明",
           offer_scope: "只讨论本次已经采到、并且能对上来源的事实。不据此比较升级方案，也不推断未采集的页面。",
@@ -246,10 +287,10 @@ export function composeCommercialReport(input: {
           choices: [],
         }
       : {
-          offer_name: customerText(analysis.conversion.offer_name),
-          offer_scope: customerText(analysis.conversion.offer_scope),
-          cta_label: customerText(analysis.conversion.cta_label),
-          cta_request: customerText(analysis.conversion.cta_request),
+          offer_name: customerText(scrubClaims(analysis.conversion.offer_name)),
+          offer_scope: customerText(scrubClaims(analysis.conversion.offer_scope)),
+          cta_label: customerText(scrubClaims(analysis.conversion.cta_label)),
+          cta_request: customerText(scrubClaims(analysis.conversion.cta_request)),
           unpromised_fields: analysis.conversion.unpromised_fields.map(customerText),
           choices: findings.slice(0, 3).map((item) => ({ id: item.id, label: customerText(item.title), area: item.business_area })),
         },
@@ -280,6 +321,7 @@ export function composeCommercialReport(input: {
       denominator: item.denominator,
     })),
   };
+  report.revision = createHash("sha256").update(JSON.stringify({ ...report, revision: "" })).digest("hex");
   return { ok: true, report, dropped };
 }
 
@@ -324,9 +366,30 @@ function customerText(value: string): string {
   return value.replace(/SiteOne/gi, "本次检测").replace(/VF-?DIAG/gi, "诊断服务");
 }
 
-function unsupportedClaim(text: string): boolean {
-  if (/不承诺|未检测|不是|不代表|没有|未读取|未验证/.test(text)) return false;
-  return /搜索排名|询盘量|询盘数|真实流量|收入增长|收入达到|采购结果|保证.{0,16}(排名|询盘|流量|收入)/.test(text);
+function scrubClaims(text: string): string {
+  return text
+    .split(/(?<=[。！？\n])/)
+    .filter((part) => part.trim() && !unsupportedSentence(part))
+    .join("")
+    .trim();
+}
+
+function removeMention(text: string, title: string): string {
+  const needle = title.trim().slice(0, 24);
+  if (needle.length < 4) return text;
+  return text
+    .split(/(?<=[。！？\n])/)
+    .filter((part) => !part.includes(needle))
+    .join("")
+    .trim();
+}
+
+function unsupportedSentence(sentence: string): boolean {
+  const claim = /搜索排名|询盘量|询盘数|真实流量|收入增长|收入达到|采购结果|保证.{0,16}(排名|询盘|流量|收入)/;
+  if (!claim.test(sentence)) return false;
+  const denies = /不承诺|未检测|不是|不代表|没有|未读取|未验证|不预测|不能|不会|不可/;
+  const asserts = /已经|达到|第一|翻倍|增长|排名第|将会|可以带来/;
+  return !(denies.test(sentence) && !asserts.test(sentence));
 }
 
 function parseAnalysis(input: unknown): { ok: true; analysis: Analysis } | { ok: false; code: "ANALYSIS_INVALID"; message: string } {

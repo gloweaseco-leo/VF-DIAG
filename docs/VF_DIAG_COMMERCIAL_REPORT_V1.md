@@ -52,8 +52,30 @@ Authorization: Bearer <VFDIAG_SERVICE_TOKEN>
 | `MODEL_FAILED` | 其他模型失败 |
 | `SOURCE_MISMATCH` | 分析里的域名或 200/301 数量和本次扫描不一致 |
 | `ANALYSIS_INVALID` | 分析结构不能用 |
+| `MODEL_NOT_AUTHORIZED` | 这次授权只覆盖公开页面扫描，没有同意模型处理 |
+| `COMMERCIAL_SYNTHETIC` | 合成测试不调用付费模型 |
+| `REVISION_MISMATCH` | 请求的报告版本和已发布版本不一致 |
+| `CANCELLED` | 任务已取消，商业报告和 PDF 不交付 |
 
 模型只使用 Qwen4-Max、Skill V0.3 和已验证的生成结构。地址只允许 `https://dashscope.aliyuncs.com/compatible-mode/v1` 或北京 `*.cn-beijing.maas.aliyuncs.com/compatible-mode/v1`。密钥用 `VFDIAG_QWEN_API_KEY`，不写入仓库。
+
+2026-11-22 的扫描授权仍然可以创建扫描任务，但不能启动模型。模型处理使用与 VF 相同的一次授权：版本 `2026-11-26-growth-candidate`，文本哈希是该授权声明的 SHA-256。合成任务即使带上这条授权，也不会调用模型。
+
+`GET /v1/jobs/:ref` 在原有状态上增加这些字段，不新增任务状态：
+
+| 字段 | 含义 |
+| --- | --- |
+| `customer_report_available` | 在线商业报告是否已经发布 |
+| `customer_report_reason` | 未发布时的原因码 |
+| `customer_report_revision` | 已发布报告 JSON 的版本 |
+| `commercial_contract_version` | 已发布时为 `vfdiag.commercial-report.v1` |
+| `pdf_available` | PDF 是否已经保存 |
+| `pdf_reason` | PDF 未完成时的原因，例如 `PDF_PENDING`、`PDF_NOT_CONFIGURED`、`PDF_RENDER_FAILED` |
+| `synthetic` | 是否为合成测试任务 |
+
+商业报告 JSON 同时带有 `job_ref`、`revision` 和 `synthetic`。`revision` 是报告 JSON 在 `revision` 为空时的 SHA-256。在线报告可以先交付，不必等 PDF。
+
+模型输入优先使用已经验证过的 HTML 技术报告清理结果。HTML 里包含访问地址、标题、标题结构、404、跳转、电话、表单、图片替代文本或外链等表时，这些表会整表保留。没有这些表时，才退回扫描 JSON。评分刻度仍只从 HTML 图形读取。
 
 ## 客户报告里有什么
 
@@ -78,16 +100,25 @@ Authorization: Bearer <VFDIAG_SERVICE_TOKEN>
 
 ## PDF
 
-```json
-"pdf": { "producer": "VEYFRONT", "status": "PENDING_VEYFRONT_PRINT", "visual_system": "veyfront.report.v2.1" }
-```
+商业报告里的 `delivery.pdf.status` 保持 `PENDING_VEYFRONT_PRINT`。这份标记不随 PDF 字节变化，因此不会改写 `revision`。
 
-VEYFRONT 用自己的 V2.1 打印样式读取这份 JSON 生成 PDF。VF-DIAG 当前不返回 PDF 字节。这一步尚未联调，不能当成已经完成。
-
-建议的后续接口由 VEYFRONT 实现：
+VF 持有唯一的 V2.1 打印页。VF-DIAG 在商业报告发布后，向已配置的 VF 源请求 PDF，并自己保存：
 
 ```http
-POST /api/diagnosis/{job_ref}/pdf
+GET {VFDIAG_PRINT_ORIGIN}/website-diagnosis/print
+Authorization: Bearer <VFDIAG_RENDER_TOKEN>
+X-VF-Job-Ref: {job_ref}
+X-VF-Report-Revision: {revision}
+Accept: application/pdf
 ```
 
-VEYFRONT 的服务端读取上面的商业报告，套用 V2.1 打印样式，返回 `application/pdf`。不要把 VF-DIAG 的任务引用放进公开营销链接。
+打印地址必须是 HTTPS。本机联调可以是 `http://127.0.0.1` 或 `http://localhost`。凭据至少 32 位，并且和客户访问 VF-DIAG 的服务凭据分开。没有配置时，`pdf_reason` 为 `PDF_NOT_CONFIGURED`，在线报告仍然交付。
+
+PDF 失败后可以单独重试，不重新扫描，也不再次调用模型：
+
+```http
+POST /v1/jobs/{job_ref}/pdf
+GET /v1/jobs/{job_ref}/artifacts/pdf?revision={revision}
+```
+
+`revision` 不一致时返回 409 `REVISION_MISMATCH`。Worker 启动时如果发现 `pdf_reason` 为 `PDF_PENDING`，只补做这一次打印。
