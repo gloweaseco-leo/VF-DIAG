@@ -27,7 +27,8 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends iptables \
   && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update \
+RUN printf 'Acquire::Retries "8";\nAcquire::http::Timeout "60";\n' > /etc/apt/apt.conf.d/80-retries \
+  && apt-get update \
   && apt-get install -y --no-install-recommends chromium fonts-noto-cjk fontconfig \
   && rm -rf /var/lib/apt/lists/*
 
