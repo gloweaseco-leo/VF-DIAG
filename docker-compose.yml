@@ -13,6 +13,7 @@ services:
       VFDIAG_QWEN_BASE_URL: ${VFDIAG_QWEN_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
       VFDIAG_PRINT_ORIGIN: ${VFDIAG_PRINT_ORIGIN:-}
       VFDIAG_RENDER_TOKEN: ${VFDIAG_RENDER_TOKEN:-}
+      VFDIAG_VERCEL_PROTECTION_BYPASS: ${VFDIAG_VERCEL_PROTECTION_BYPASS:-}
     volumes:
       - vfdiag-data:/var/lib/vfdiag
     networks:

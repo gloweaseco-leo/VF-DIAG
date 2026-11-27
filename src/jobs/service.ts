@@ -430,6 +430,8 @@ export function createJobService(options: {
       await update(jobRef, { pdf_available: true, pdf_reason: null });
     } catch (error) {
       const code = error instanceof PdfRenderError ? error.code : "PDF_FAILED";
+      const detail = error instanceof Error ? error.message : "PDF 生成失败。";
+      console.log(`pdf ${code} ${detail}`);
       await update(jobRef, { pdf_available: false, pdf_reason: code });
     }
   }

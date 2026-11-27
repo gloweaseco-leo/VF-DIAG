@@ -190,11 +190,13 @@ test("print delivery accepts only the VF PDF response", async () => {
     jobRef: "job-ref-01",
     revision: "abc",
     signal: AbortSignal.timeout(1000),
+    bypass: "",
     fetchImpl: async (url, init) => {
       assert.equal(String(url), "https://print.example/website-diagnosis/print");
       const headers = new Headers(init?.headers);
       assert.equal(headers.get("x-vf-job-ref"), "job-ref-01");
       assert.equal(headers.get("x-vf-report-revision"), "abc");
+      assert.equal(headers.get("x-vercel-protection-bypass"), null);
       return new Response(pdf, { status: 200, headers: { "content-type": "application/pdf" } });
     },
   });
@@ -224,6 +226,25 @@ test("print delivery accepts only the VF PDF response", async () => {
     }),
     (error: unknown) => error instanceof PdfRenderError && error.code === "PDF_RENDER_FAILED",
   );
+});
+
+test("preview protection bypass is sent only when a long value is configured", async () => {
+  const seen: Array<string | null> = [];
+  const fetchImpl: typeof fetch = async (_url, init) => {
+    seen.push(new Headers(init?.headers).get("x-vercel-protection-bypass"));
+    return new Response(Buffer.from("%PDF-1.4\n"), { status: 200, headers: { "content-type": "application/pdf" } });
+  };
+  const base = {
+    origin: "https://print.example",
+    token: "render-token-at-least-32-characters",
+    jobRef: "job-ref-01",
+    revision: "abc",
+    signal: AbortSignal.timeout(1000),
+    fetchImpl,
+  };
+  await fetchPrintPdf({ ...base, bypass: "short-bypass" });
+  await fetchPrintPdf({ ...base, bypass: "preview-automation-bypass-32chars" });
+  assert.deepEqual(seen, [null, "preview-automation-bypass-32chars"]);
 });
 
 test("the model request matches the verified Qwen4-Max V0.3 call", () => {

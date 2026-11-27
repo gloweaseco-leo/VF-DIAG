@@ -116,6 +116,8 @@ Accept: text/html
 
 打印地址必须是 HTTPS。本机联调可以是 `http://127.0.0.1` 或 `http://localhost`。凭据至少 32 位，并且和客户访问 VF-DIAG 的服务凭据分开。没有配置时，`pdf_reason` 为 `PDF_NOT_CONFIGURED`，在线报告仍然交付。
 
+预览部署如果仍启用访问保护，把已有的自动化绕过值放在 `VFDIAG_VERCEL_PROTECTION_BYPASS`。Worker 只在该值不少于 32 位时附带 `X-Vercel-Protection-Bypass`，不关闭访问保护。Chromium 与 `fonts-noto-cjk` 安装在镜像里，容器重建后仍然可用。
+
 PDF 失败后可以单独重试，不重新扫描，也不再次调用模型：
 
 ```http

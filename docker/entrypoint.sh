@@ -5,4 +5,5 @@ if [ "${VFDIAG_EGRESS_FILTER:-}" = "1" ]; then
 fi
 mkdir -p "${VFDIAG_DATA_DIR:-/var/lib/vfdiag}"
 chown -R node:node "${VFDIAG_DATA_DIR:-/var/lib/vfdiag}"
+export HOME=/home/node
 exec setpriv --reuid=node --regid=node --init-groups -- "$@"
