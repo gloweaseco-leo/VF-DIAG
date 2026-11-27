@@ -37,6 +37,21 @@ test("crawler arguments stay inside the M0 allowlist", () => {
     { jsonFile: "/tmp/job/siteone.json", htmlFile: "/tmp/job/siteone.html" },
   );
   assert.ok(synthetic.includes("--resolve=fixture-site:8080:172.16.50.2"));
+  const httpArgs = buildSiteOneArgs(
+    {
+      href: "http://factory.example/",
+      origin: "http://factory.example",
+      host: "factory.example",
+      port: 80,
+      addresses: ["93.184.216.34"],
+      synthetic: false,
+    },
+    { jsonFile: "/tmp/job/siteone.json", htmlFile: "/tmp/job/siteone.html" },
+  );
+  assert.equal(httpArgs.some((arg) => FORBIDDEN_ARG_PATTERN.test(arg)), false);
+  assert.ok(httpArgs.includes("--url=http://factory.example/"));
+  assert.ok(httpArgs.includes("--resolve=factory.example:80:93.184.216.34"));
+  assert.equal(httpArgs.some((arg) => arg.includes("accept-invalid")), false);
   const storageDir = path.join(path.dirname("/tmp/job/siteone.json"), "tmp", "result-storage");
   assert.ok(args.includes(`--result-storage-dir=${storageDir}`));
   assert.ok(args.includes("--http-cache-dir=off"));

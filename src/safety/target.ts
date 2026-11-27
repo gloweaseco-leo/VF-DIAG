@@ -45,20 +45,25 @@ export async function evaluateTarget(
   }
 
   const synthetic = options.syntheticHosts.has(host);
+  const https = url.protocol === "https:";
+  const http = url.protocol === "http:";
   if (synthetic) {
-    if (url.protocol !== "http:") {
+    if (!http) {
       return reject("TARGET_SCHEME_REJECTED", "合成样本只允许 http。");
     }
     if (url.port !== "" && url.port !== "80" && url.port !== "8080") {
       return reject("TARGET_PORT_REJECTED", "合成样本只允许 80 或 8080 端口。");
     }
-  } else {
-    if (url.protocol !== "https:") {
-      return reject("TARGET_SCHEME_REJECTED", "正式扫描只接受 https。");
-    }
+  } else if (https) {
     if (url.port !== "" && url.port !== "443") {
-      return reject("TARGET_PORT_REJECTED", "正式扫描只接受 443 端口。");
+      return reject("TARGET_PORT_REJECTED", "正式扫描的 https 只接受 443 端口。");
     }
+  } else if (http) {
+    if (url.port !== "" && url.port !== "80") {
+      return reject("TARGET_PORT_REJECTED", "正式扫描的 http 只接受 80 端口。");
+    }
+  } else {
+    return reject("TARGET_SCHEME_REJECTED", "正式扫描只接受公开网站的 http 或 https。");
   }
 
   if (isIP(host) !== 0) {
@@ -92,7 +97,7 @@ export async function evaluateTarget(
     return reject("TARGET_PRIVATE_ADDRESS", "域名解析到了私网、回环或链路本地地址。");
   }
 
-  const port = url.port ? Number(url.port) : synthetic ? 80 : 443;
+  const port = url.port ? Number(url.port) : https ? 443 : 80;
   url.hash = "";
   return {
     ok: true,
