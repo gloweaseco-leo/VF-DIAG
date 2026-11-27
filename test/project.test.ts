@@ -55,6 +55,20 @@ test("thin sample stays unconfirmed instead of a defect", () => {
   assert.equal(result.report.headline.status, "partial");
 });
 
+test("an http site on the same host keeps the existing diagnosis", () => {
+  const siteone = reachable();
+  siteone.results = (siteone.results ?? []).map((row) => ({
+    ...row,
+    url: String(row.url).replace("https://", "http://"),
+  }));
+  siteone.results.push({ url: "https://factory.example/about", status: "200", type: 1 });
+  const result = projectReport({ ...base, inputUrl: "http://factory.example/", siteone });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.report.target.input_url, "http://factory.example/");
+  assert.equal(result.report.recommended_next_step, "KEEP");
+});
+
 test("refuses a report when a fetched URL leaves the target host", () => {
   const siteone = thin();
   siteone.results?.push({ url: "http://169.254.169.254/latest", status: "200", type: 1 });

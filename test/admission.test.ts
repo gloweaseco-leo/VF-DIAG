@@ -18,6 +18,7 @@ const clock = new Date("2026-11-26T02:00:00.000Z");
 
 test("canonical host ignores www and paths but keeps other subdomains", () => {
   assert.equal(canonicalHost("https://www.factory.example/products?x=1"), "factory.example");
+  assert.equal(canonicalHost("http://www.factory.example/"), "factory.example");
   assert.equal(canonicalHost("https://factory.example/contact"), "factory.example");
   assert.equal(canonicalHost("https://en.factory.example/"), "en.factory.example");
   assert.equal(canonicalHost("https://www.en.factory.example/about"), "en.factory.example");

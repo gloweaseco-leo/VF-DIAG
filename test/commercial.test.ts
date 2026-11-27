@@ -266,6 +266,7 @@ test("the model request matches the verified Qwen4-Max V0.3 call", () => {
   assert.equal(joined.includes("DATA_SLOT_START\nclean source\nDATA_SLOT_END"), true);
   assert.equal(joined.includes("SOURCE_FILE: siteone.json"), false);
   assert.match(joined, /source_file 填写该行写出的 siteone.html 或 siteone.json/);
+  assert.match(joined, /入口是 http 且材料没有证书时/);
 });
 
 test("a streaming model response keeps the answer and drops the thinking trace", async () => {

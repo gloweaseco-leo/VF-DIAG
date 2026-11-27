@@ -23,6 +23,19 @@ test("accepts a public https domain pinned to a public address", async () => {
   }
 });
 
+test("accepts a public http site on port 80 without changing the scheme", async () => {
+  const verdict = await evaluateTarget("http://factory.example/", { lookup, syntheticHosts: synthetic });
+  assert.equal(verdict.ok, true);
+  if (!verdict.ok) return;
+  assert.equal(verdict.target.href, "http://factory.example/");
+  assert.equal(verdict.target.origin, "http://factory.example");
+  assert.equal(verdict.target.port, 80);
+  assert.equal(verdict.target.synthetic, false);
+  const explicit = await evaluateTarget("http://factory.example:80/products", { lookup, syntheticHosts: synthetic });
+  assert.equal(explicit.ok, true);
+  if (explicit.ok) assert.equal(explicit.target.port, 80);
+});
+
 test("rejects private, loopback, metadata, and mixed DNS answers", async () => {
   const cases = [
     ["https://127.0.0.1/", "TARGET_PRIVATE_ADDRESS"],
@@ -34,7 +47,10 @@ test("rejects private, loopback, metadata, and mixed DNS answers", async () => {
     ["https://[::1]/", "TARGET_PRIVATE_ADDRESS"],
     ["https://metadata.example/", "TARGET_PRIVATE_ADDRESS"],
     ["https://rebind.example/", "TARGET_PRIVATE_ADDRESS"],
-    ["http://factory.example/", "TARGET_SCHEME_REJECTED"],
+    ["http://127.0.0.1/", "TARGET_PRIVATE_ADDRESS"],
+    ["http://factory.example:8080/", "TARGET_PORT_REJECTED"],
+    ["http://factory.example:443/", "TARGET_PORT_REJECTED"],
+    ["ftp://factory.example/", "TARGET_SCHEME_REJECTED"],
     ["https://factory.example:8443/", "TARGET_PORT_REJECTED"],
     ["https://user:pw@factory.example/", "TARGET_URL_INVALID"],
     ["https://localhost/", "TARGET_HOST_REJECTED"],
@@ -58,5 +74,5 @@ test("synthetic host is http on the docker network only", async () => {
   if (!publicAnswer.ok) assert.equal(publicAnswer.code, "TARGET_PRIVATE_ADDRESS");
   const closed = await evaluateTarget("http://fixture-site:8080/", { lookup, syntheticHosts: new Set() });
   assert.equal(closed.ok, false);
-  if (!closed.ok) assert.equal(closed.code, "TARGET_SCHEME_REJECTED");
+  if (!closed.ok) assert.equal(closed.code, "TARGET_PORT_REJECTED");
 });
