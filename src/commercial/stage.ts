@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { SiteOneJson } from "../report/types.ts";
-import { cleanSiteOne } from "./clean.ts";
-import { composeCommercialReport, countResponses, sameSite, sourceCountMismatch } from "./compose.ts";
+import { cleanSiteOne, htmlExclusiveTables, htmlSourceMarkers } from "./clean.ts";
+import { certificateTrust, composeCommercialReport, countResponses, fillUnstatedCounts, readEngineScores, sameSite, sourceCountMismatch } from "./compose.ts";
 import { ModelCallError } from "./qwen.ts";
 import { deriveScoreScale } from "./score-scale.ts";
 
@@ -78,24 +78,31 @@ async function writeReport(
   reused: boolean,
   modelReceipt: Record<string, unknown> | null,
 ): Promise<{ available: boolean; code: string | null }> {
-  const profile = analysis && typeof analysis === "object" ? (analysis as { source_profile?: { target_domain?: unknown } }).source_profile : undefined;
+  const counts = countResponses(options.siteone.results);
+  const aligned = fillUnstatedCounts(analysis, counts);
+  const profile = aligned && typeof aligned === "object" ? (aligned as { source_profile?: { target_domain?: unknown } }).source_profile : undefined;
   const domain = typeof profile?.target_domain === "string" ? profile.target_domain : "";
   if (!sameSite(domain, options.host)) {
     await fail(options.dir, sha, reused, modelReceipt, "SOURCE_MISMATCH", "分析的网站和本次扫描目标不一致，客户报告未发布。");
     return { available: false, code: "SOURCE_MISMATCH" };
   }
-  const mismatch = sourceCountMismatch(analysis, countResponses(options.siteone.results));
+  const mismatch = sourceCountMismatch(aligned, counts);
   if (mismatch) {
     await fail(options.dir, sha, reused, modelReceipt, "SOURCE_MISMATCH", mismatch);
     return { available: false, code: "SOURCE_MISMATCH" };
   }
   const scale = options.html ? deriveScoreScale(options.html) : null;
   const composed = composeCommercialReport({
-    analysis,
+    analysis: aligned,
     generatedAt: options.generatedAt,
     jobRef: options.jobRef,
     synthetic: options.synthetic,
     scoreScale: scale,
+    htmlOnlyTables: htmlExclusiveTables(options.html, Object.keys(options.siteone.tables ?? {})),
+    jsonTables: Object.keys(options.siteone.tables ?? {}),
+    htmlMarkers: htmlSourceMarkers(options.html),
+    engineScores: readEngineScores(options.siteone.qualityScores),
+    certificateTrust: certificateTrust(options.siteone.tables?.["certificate-info"]?.rows as Array<Record<string, unknown>> | undefined),
   });
   if (!composed.ok) {
     await fail(options.dir, sha, reused, modelReceipt, composed.code, composed.message);

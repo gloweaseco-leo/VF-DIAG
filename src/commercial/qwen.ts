@@ -53,7 +53,7 @@ export function buildQwenPayload(cleanText: string): { payload: Record<string, u
     "4. 保留正面事实，例如已有产品详情、联系方式、有效证书。别把缺少 tel: 误当作没有电话，别把图片未抓取当成没有产品图片。",
     "5. 有效的商业下一步是可验证的选择题，不强推整体重建，也不承诺免费、工期、排名或询盘增长。",
     "6. 最多 3 项优先问题；仅交付符合结构化协议的 analysis.json。下游会生成客户报告，这里不要另外输出报告。",
-    "SOURCE_FILE: siteone.json",
+    "每张表上一行 SOURCE 是这张表的真实文件。source_file 填写该行写出的 siteone.html 或 siteone.json；同一条证据同时引用两种文件时写成 siteone.html+siteone.json。电话、表单、图片替代文本若 SOURCE 为 siteone.html，不得改标成 siteone.json。source_location 写表名和列名，不能只写网址。",
     "DATA_SLOT_START",
     cleanText,
     "DATA_SLOT_END",
@@ -71,7 +71,8 @@ export function buildQwenPayload(cleanText: string): { payload: Record<string, u
       thinking_budget: 30720,
       max_completion_tokens: 45056,
       enable_search: false,
-      stream: false,
+      stream: true,
+      stream_options: { include_usage: true },
       response_format: {
         type: "json_schema",
         json_schema: { name: "veyfront_analysis", strict: true, schema: generationSchema },
@@ -101,24 +102,33 @@ export async function callQwen(options: {
   const built = buildQwenPayload(options.cleanText);
   const endpoint = qwenEndpoint(options.baseUrl?.trim() || "https://dashscope.aliyuncs.com/compatible-mode/v1");
   const fetchImpl = options.fetchImpl ?? fetch;
-  const response = await fetchImpl(endpoint, {
-    method: "POST",
-    redirect: "error",
-    signal: options.signal,
-    headers: {
-      authorization: `Bearer ${options.apiKey}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(built.payload),
-  });
+  let response: Response;
+  try {
+    response = await fetchImpl(endpoint, {
+      method: "POST",
+      redirect: "error",
+      signal: options.signal,
+      headers: {
+        authorization: `Bearer ${options.apiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(built.payload),
+    });
+  } catch (error) {
+    if (options.signal.aborted) throw error;
+    const cause = error instanceof Error && error.cause instanceof Error ? error.cause.message : "";
+    if (cause) throw new Error(`模型连接中断：${cause}`);
+    throw error;
+  }
   if (response.status !== 200) throw new ModelCallError("MODEL_HTTP", `模型接口返回 ${response.status}。`);
-  const body = (await response.json()) as {
+  const body = await readModelBody(await response.text());
+  const typed = body as {
     id?: unknown;
     model?: unknown;
     choices?: Array<{ finish_reason?: unknown; message?: { content?: unknown } }>;
     usage?: { prompt_tokens?: unknown; completion_tokens?: unknown; total_tokens?: unknown };
   };
-  const choice = body.choices?.[0];
+  const choice = typed.choices?.[0];
   const finish = typeof choice?.finish_reason === "string" ? choice.finish_reason : null;
   if (finish !== "stop") throw new ModelCallError("MODEL_INCOMPLETE", "模型没有完整结束，分析未采用。");
   const content = choice?.message?.content;
@@ -134,17 +144,17 @@ export async function callQwen(options: {
   if (!analysis || typeof analysis !== "object" || Array.isArray(analysis)) {
     throw new ModelCallError("MODEL_OUTPUT", "模型输出不是 JSON 对象。");
   }
-  const prompt = numberOrNull(body.usage?.prompt_tokens);
-  const completion = numberOrNull(body.usage?.completion_tokens);
+  const prompt = numberOrNull(typed.usage?.prompt_tokens);
+  const completion = numberOrNull(typed.usage?.completion_tokens);
   return {
     analysis,
     receipt: {
-      model: typeof body.model === "string" ? body.model : MODEL,
+      model: typeof typed.model === "string" ? typed.model : MODEL,
       http_status: 200,
       finish_reason: finish,
-      usage: { prompt_tokens: prompt, completion_tokens: completion, total_tokens: numberOrNull(body.usage?.total_tokens) },
+      usage: { prompt_tokens: prompt, completion_tokens: completion, total_tokens: numberOrNull(typed.usage?.total_tokens) },
       estimated_cost_cny: prompt === null || completion === null ? null : roundCost(prompt, completion),
-      response_id: typeof body.id === "string" ? body.id : null,
+      response_id: typeof typed.id === "string" ? typed.id : null,
       skill_sha256: built.skill_sha256,
       schema_sha256: built.schema_sha256,
     },
@@ -156,6 +166,40 @@ export function createProductionAnalyzer(options: { apiKey: string; baseUrl?: st
     const result = await callQwen({ ...input, apiKey: options.apiKey, baseUrl: options.baseUrl });
     return result;
   };
+}
+
+async function readModelBody(raw: string): Promise<unknown> {
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("data:")) return JSON.parse(trimmed) as unknown;
+  let id: unknown;
+  let model: unknown;
+  let content = "";
+  let finish: string | null = null;
+  let usage: unknown;
+  for (const line of trimmed.split(/\r?\n/)) {
+    if (!line.startsWith("data:")) continue;
+    const data = line.slice(5).trim();
+    if (!data || data === "[DONE]") continue;
+    const chunk = JSON.parse(data) as {
+      id?: unknown;
+      model?: unknown;
+      error?: { message?: unknown };
+      usage?: unknown;
+      choices?: Array<{ finish_reason?: unknown; delta?: { content?: unknown }; message?: { content?: unknown } }>;
+    };
+    if (chunk.error) {
+      const message = typeof chunk.error.message === "string" ? chunk.error.message : "模型流式返回错误。";
+      throw new ModelCallError("MODEL_HTTP", message);
+    }
+    if (typeof chunk.id === "string") id = chunk.id;
+    if (typeof chunk.model === "string") model = chunk.model;
+    const choice = chunk.choices?.[0];
+    const piece = choice?.delta?.content ?? choice?.message?.content;
+    if (typeof piece === "string") content += piece;
+    if (typeof choice?.finish_reason === "string") finish = choice.finish_reason;
+    if (chunk.usage && typeof chunk.usage === "object") usage = chunk.usage;
+  }
+  return { id, model, choices: [{ finish_reason: finish, message: { content } }], usage };
 }
 
 function assertAssets(): void {

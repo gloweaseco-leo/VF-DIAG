@@ -55,7 +55,15 @@ export type CommercialReport = {
     buyer_tasks: Array<{ task: string; title: string; status: string; fact: string; unknown: string; evidence_ids: string[] }>;
   };
   chapters: Array<{ id: "discover" | "convince" | "connect"; title: string; findings: FindingView[] }>;
-  visuals: Array<{ id: string; type: string; caption: string; disclaimer: string; evidence_ids: string[]; asset_available: boolean }>;
+  visuals: Array<{
+    id: string;
+    type: string;
+    caption: string;
+    disclaimer: string;
+    evidence_ids: string[];
+    asset_available: boolean;
+    sources: EvidenceSource[];
+  }>;
   next_step: {
     offer_name: string;
     offer_scope: string;
@@ -72,7 +80,21 @@ export type CommercialReport = {
     notes: Array<{ label: string; fact: string; significance: string }>;
     not_checked: string[];
   };
-  evidence: Array<{ id: string; fact: string; url: string | null; raw_value: string | number | null; denominator: number | null }>;
+  evidence: EvidenceView[];
+};
+
+type EvidenceSource = {
+  evidence_id: string;
+  source_file: string;
+  source_location: string;
+  url: string | null;
+  raw_value: string | number | null;
+};
+
+type EvidenceView = EvidenceSource & {
+  id: string;
+  fact: string;
+  denominator: number | null;
 };
 
 type FindingView = {
@@ -107,7 +129,15 @@ type Analysis = {
     overall: { label: string; score: number | null; max_score: number | null; caveat: string };
     dimensions: Array<{ label: string; score: number | null; max_score: number | null; caveat: string }>;
   };
-  evidence_index: Array<{ id: string; observed_fact: string; source_url: string | null; raw_value: string | number | null; denominator: number | null }>;
+  evidence_index: Array<{
+    id: string;
+    observed_fact: string;
+    source_url: string | null;
+    raw_value: string | number | null;
+    denominator: number | null;
+    source_file?: string;
+    source_location?: string;
+  }>;
   diagnosis: {
     headline: string;
     verdict: Verdict;
@@ -139,12 +169,49 @@ export type ComposeResult =
   | { ok: true; report: CommercialReport; dropped: string[] }
   | { ok: false; code: "ANALYSIS_INVALID"; message: string };
 
+export type EngineScores = {
+  overall: { label: string; score: number };
+  dimensions: Array<{ label: string; score: number }>;
+};
+
+const EMPTY_TABLE_NOTE = /No rows found, please edit your search term\.?/g;
+const CHAPTER_AREAS = new Set<string>(CHAPTERS.flatMap((chapter) => [...chapter.areas]));
+
+export function readEngineScores(value: unknown): EngineScores | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as { overall?: { name?: unknown; score?: unknown }; categories?: unknown };
+  if (typeof record.overall?.score !== "number" || !Number.isFinite(record.overall.score)) return null;
+  const dimensions = Array.isArray(record.categories)
+    ? record.categories.flatMap((item) => {
+        if (!item || typeof item !== "object") return [];
+        const category = item as { name?: unknown; score?: unknown };
+        if (typeof category.score !== "number" || !Number.isFinite(category.score)) return [];
+        return [{ label: typeof category.name === "string" && category.name.trim() ? category.name.trim() : "分项", score: category.score }];
+      })
+    : [];
+  return {
+    overall: { label: typeof record.overall.name === "string" && record.overall.name.trim() ? record.overall.name.trim() : "Overall", score: record.overall.score },
+    dimensions,
+  };
+}
+
+export function certificateTrust(rows: Array<Record<string, unknown>> | undefined): string | null {
+  const row = (rows ?? []).find((item) => String(item.info ?? "").trim().toLowerCase() === "trust");
+  const value = typeof row?.value === "string" ? row.value.trim() : "";
+  return value || null;
+}
+
 export function composeCommercialReport(input: {
   analysis: unknown;
   generatedAt: string;
   jobRef?: string;
   synthetic?: boolean;
   scoreScale?: ScoreScale | null;
+  htmlOnlyTables?: string[];
+  jsonTables?: string[];
+  htmlMarkers?: string[];
+  engineScores?: EngineScores | null;
+  certificateTrust?: string | null;
 }): ComposeResult {
   const parsed = parseAnalysis(input.analysis);
   if (!parsed.ok) return parsed;
@@ -180,7 +247,8 @@ export function composeCommercialReport(input: {
   });
   const verdictIds = analysis.diagnosis.verdict_evidence_ids ?? [];
   const verdictBacked = verdictIds.length > 0 && verdictIds.every((id) => known.has(id));
-  const limited = analysis.source_profile.data_sufficiency === "unusable" || analysis.source_profile.http_200 === 0;
+  const evidencedChapters = findings.some((item) => CHAPTER_AREAS.has(item.business_area));
+  const limited = !evidencedChapters || analysis.source_profile.data_sufficiency === "unusable" || analysis.source_profile.http_200 === 0;
   let verdict = analysis.diagnosis.verdict;
   if (!verdictBacked && verdict !== "no_urgent_action" && verdict !== "further_verification") {
     dropped.push("首屏判断没有完整证据引用，已改为先核实。");
@@ -195,6 +263,9 @@ export function composeCommercialReport(input: {
     verdictReason = removeMention(verdictReason, item.title);
   }
   if (!headline) headline = VERDICT_LABEL[verdict];
+
+  const evidenceViews = analysis.evidence_index.map((item) => evidenceView(item, input.htmlOnlyTables ?? [], input.jsonTables ?? [], input.htmlMarkers ?? []));
+  const evidenceById = new Map(evidenceViews.map((item) => [item.id, item]));
 
   const chapters = CHAPTERS.map((chapter) => ({
     id: chapter.id,
@@ -275,6 +346,7 @@ export function composeCommercialReport(input: {
         disclaimer: customerText(item.visible_disclaimer),
         evidence_ids: item.evidence_ids,
         asset_available: item.type === "real_page_screenshot" && typeof item.source_asset === "string" && item.source_asset.length > 0,
+        sources: item.evidence_ids.map((id) => sourceOf(evidenceById.get(id))).filter((item): item is EvidenceSource => item !== null),
       }];
     }),
     next_step: limited
@@ -292,7 +364,10 @@ export function composeCommercialReport(input: {
           cta_label: customerText(scrubClaims(analysis.conversion.cta_label)),
           cta_request: customerText(scrubClaims(analysis.conversion.cta_request)),
           unpromised_fields: analysis.conversion.unpromised_fields.map(customerText),
-          choices: findings.slice(0, 3).map((item) => ({ id: item.id, label: customerText(item.title), area: item.business_area })),
+          choices: findings
+            .filter((item) => CHAPTER_AREAS.has(item.business_area))
+            .slice(0, 3)
+            .map((item) => ({ id: item.id, label: customerText(item.title), area: item.business_area })),
         },
     technical_appendix: {
       is_business_score: false,
@@ -313,16 +388,123 @@ export function composeCommercialReport(input: {
       ],
       not_checked: analysis.diagnosis.not_checked.map(customerText),
     },
-    evidence: analysis.evidence_index.map((item) => ({
-      id: item.id,
-      fact: customerText(item.observed_fact),
-      url: item.source_url,
-      raw_value: item.raw_value,
-      denominator: item.denominator,
-    })),
+    evidence: evidenceViews,
   };
+  applyMeasuredFacts(report, input.engineScores ?? null, input.certificateTrust ?? null);
   report.revision = createHash("sha256").update(JSON.stringify({ ...report, revision: "" })).digest("hex");
   return { ok: true, report, dropped };
+}
+
+function mentionsTable(location: string, name: string): boolean {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`TABLE\\s+${escaped}(?![\\w-])`).test(location);
+}
+
+function evidenceView(
+  item: Analysis["evidence_index"][number],
+  htmlOnly: string[],
+  jsonTables: string[],
+  htmlMarkers: string[],
+): EvidenceView {
+  const location = typeof item.source_location === "string" ? item.source_location : "";
+  const claimed = typeof item.source_file === "string" ? item.source_file.trim() : "";
+  const htmlHit = htmlOnly.some((name) => mentionsTable(location, name)) || htmlMarkers.some((name) => location.includes(name));
+  const jsonHit = jsonTables.some((name) => mentionsTable(location, name));
+  const stamped = claimed === "" || claimed === "siteone.json" || claimed === "siteone.html";
+  let sourceFile = claimed;
+  if (htmlHit && jsonHit && stamped) sourceFile = "siteone.html+siteone.json";
+  else if (htmlHit && (claimed === "" || claimed === "siteone.json")) sourceFile = "siteone.html";
+  else if (jsonHit && (claimed === "" || claimed === "siteone.html")) sourceFile = "siteone.json";
+  else if (!sourceFile) sourceFile = "siteone.json";
+  return {
+    id: item.id,
+    evidence_id: item.id,
+    fact: customerText(item.observed_fact),
+    url: item.source_url,
+    raw_value: item.raw_value,
+    denominator: item.denominator,
+    source_file: sourceFile,
+    source_location: location,
+  };
+}
+
+function sourceOf(item: EvidenceView | undefined): EvidenceSource | null {
+  if (!item) return null;
+  return {
+    evidence_id: item.id,
+    source_file: item.source_file,
+    source_location: item.source_location,
+    url: item.url,
+    raw_value: item.raw_value,
+  };
+}
+
+function applyMeasuredFacts(report: CommercialReport, scores: EngineScores | null, trust: string | null): void {
+  replaceText(report);
+  if (scores) {
+    report.technical_appendix.overall = {
+      label: `${scores.overall.label}（检测引擎技术分）`,
+      score: scores.overall.score,
+      max_score: report.technical_appendix.overall.max_score ?? 10,
+      caveat: "这是检测引擎给出的技术分，不是获客能力评分，也不据此决定是否重建。",
+    };
+    report.technical_appendix.dimensions = scores.dimensions.map((item) => ({
+      label: item.label,
+      score: item.score,
+      max_score: report.technical_appendix.overall.max_score,
+      caveat: "分项技术分，不换算成获客能力。",
+    }));
+    report.subject.limitations = report.subject.limitations.filter((item) => !/质量分|技术评分结论/.test(item));
+    report.technical_appendix.not_checked = report.technical_appendix.not_checked.filter((item) => !/质量分分值|技术评分结论/.test(item));
+  }
+  if (trust && /trusted by system ca store/i.test(trust)) {
+    report.subject.limitations = report.subject.limitations.filter((item) => !/证书链信任校验结果未能|Trust 行文本存在歧义/.test(item));
+    report.technical_appendix.notes = report.technical_appendix.notes.map((note) => {
+      if (!/信任校验|No rows found|未能从材料确认/.test(`${note.label} ${note.fact} ${note.significance}`)) return note;
+      return {
+        label: "证书信任",
+        fact: "证书表 Trust 为 Trusted by system CA store。",
+        significance: "系统信任库接受这张证书。这只说明证书链被信任，不说明网站内容可信。",
+      };
+    });
+    report.evidence = report.evidence.map((item) => {
+      if (!/No rows found|未能从材料确认|无法从材料确认/.test(item.fact)) return item;
+      if (!/Trust|信任/.test(item.fact)) return item;
+      return { ...item, fact: "证书表 Trust 为 Trusted by system CA store。", raw_value: trust };
+    });
+  }
+}
+
+function replaceText(value: unknown): void {
+  if (Array.isArray(value)) {
+    value.forEach((item) => replaceText(item));
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  const record = value as Record<string, unknown>;
+  for (const [key, item] of Object.entries(record)) {
+    if (typeof item === "string" && item.includes("No rows found")) {
+      record[key] = item.replace(EMPTY_TABLE_NOTE, "").replace(/[ \t]{2,}/g, " ").trim();
+    } else {
+      replaceText(item);
+    }
+  }
+}
+
+export function fillUnstatedCounts(analysis: unknown, counts: { checked: number; http200: number; http301: number }): unknown {
+  if (!analysis || typeof analysis !== "object" || Array.isArray(analysis)) return analysis;
+  const record = analysis as { source_profile?: unknown };
+  if (!record.source_profile || typeof record.source_profile !== "object" || Array.isArray(record.source_profile)) return analysis;
+  const profile = record.source_profile as Record<string, unknown>;
+  return {
+    ...record,
+    source_profile: {
+      ...profile,
+      checked_urls: profile.checked_urls ?? counts.checked,
+      http_200: profile.http_200 ?? counts.http200,
+      http_301: profile.http_301 ?? counts.http301,
+    },
+  };
 }
 
 export function sameSite(domain: string, host: string): boolean {

@@ -75,7 +75,7 @@ Authorization: Bearer <VFDIAG_SERVICE_TOKEN>
 
 商业报告 JSON 同时带有 `job_ref`、`revision` 和 `synthetic`。`revision` 是报告 JSON 在 `revision` 为空时的 SHA-256。在线报告可以先交付，不必等 PDF。
 
-模型输入优先使用已经验证过的 HTML 技术报告清理结果。HTML 里包含访问地址、标题、标题结构、404、跳转、电话、表单、图片替代文本或外链等表时，这些表会整表保留。没有这些表时，才退回扫描 JSON。评分刻度仍只从 HTML 图形读取。
+模型输入优先使用已经验证过的 HTML 技术报告清理结果。HTML 里包含访问地址、标题、标题结构、404、跳转、电话、表单、图片替代文本或外链等表时，这些表会整表保留，并附上扫描 JSON 里的 `qualityScores` 数字。没有这些表时，才退回扫描 JSON。评分刻度仍只从 HTML 图形读取。清理 HTML 文本时会去掉空表提示 “No rows found, please edit your search term.”，避免把它接进证书字段。
 
 ## 客户报告里有什么
 
@@ -88,11 +88,13 @@ Authorization: Bearer <VFDIAG_SERVICE_TOKEN>
 | `chapters.convince` | 信任和已有营销资产 |
 | `chapters.connect` | 询盘和联系 |
 | `visuals` | 有来源编号的对照，不是新截图 |
-| `next_step` | 咨询选择。`choices` 来自保留下来的发现，不是固定的某家企业方案 |
+| `next_step` | 咨询选择。`choices` 只来自正文章节里保留下来的发现。安全和无障碍发现留在技术附录，不作为咨询选项 |
 | `technical_appendix` | 技术评分附录。`is_business_score` 固定为 false |
 | `evidence` | 可回查的事实、URL 和原始数字 |
 
-`subject.limited` 为 true 时，只保留能对上来源的事实，结论从“系统性升级评估”收回到“先核实”，并且不给出升级选择。证据不足的发现会被丢掉，而不是交给人工补写。
+`subject.limited` 只在模型把证据标成不可用、本次没有 HTTP 200，或没有任何能回查的章节发现时为 true。此时结论从“系统性升级评估”收回到“先核实”，并且不给出升级选择。已有证据的商业建议、咨询选项和信任资产保留；不用页面路径是否像英文产品页或联系页来覆盖这些内容。证据不足的发现会被丢掉，而不是交给人工补写。分析没有填写技术分时，用扫描 JSON 的 `qualityScores` 补上；这仍是技术分，不据此决定是否重建。证书表已写明受系统信任库信任时，不再把空表提示写成信任不明。
+
+`evidence` 保留 `source_file` 和 `source_location`。电话、表单、图片替代文本以及 HTML 里的证书块、爬虫信息，来源文件写成 `siteone.html`。只在 JSON 里的表写成 `siteone.json`。同一条证据同时引用两边时写成 `siteone.html+siteone.json`。位置写表名和列名，不把这些明细改标成单一文件，也不只留一个网址。模型原来写过的其他来源文件名保持不变。`visuals[].sources` 带上对应证据的数字原值、文件和位置，供 VF 直接渲染。
 
 `visuals[].asset_available` 为 false 时，没有可展示的页面截图。不要自行补图。
 

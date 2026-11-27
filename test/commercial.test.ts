@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { cleanHtmlReport } from "../src/commercial/clean.ts";
+import { cleanHtmlReport, cleanSiteOne, formatQualityScores } from "../src/commercial/clean.ts";
 import { composeCommercialReport } from "../src/commercial/compose.ts";
 import { fetchPrintPdf, PdfRenderError } from "../src/commercial/pdf.ts";
 import { callQwen, ModelCallError, qwenEndpoint, buildQwenPayload } from "../src/commercial/qwen.ts";
@@ -164,7 +164,7 @@ test("verified HTML tables keep contact, product, and date evidence", () => {
   assert.match(clean, /\+86 130 7679 8682/);
   assert.match(clean, /Claw Machine April 2017/);
   assert.match(clean, /https:\/\/jjgamemachine.com\/case\/arcade/);
-  assert.match(clean, /TABLE non-clickable-phone-numbers rows=1/);
+  assert.match(clean, /SOURCE siteone.html\nTABLE non-clickable-phone-numbers rows=1/);
 });
 
 test("the crawler process does not receive model or service credentials", () => {
@@ -235,6 +235,7 @@ test("the model request matches the verified Qwen4-Max V0.3 call", () => {
   assert.equal(built.payload.thinking_budget, 30720);
   assert.equal(built.payload.max_completion_tokens, 45056);
   assert.equal(built.payload.enable_search, false);
+  assert.equal(built.payload.stream, true);
   assert.equal("reasoning_effort" in built.payload, false);
   const messages = built.payload.messages as Array<{ content: string }>;
   const joined = messages.map((item) => item.content).join("\n");
@@ -242,6 +243,24 @@ test("the model request matches the verified Qwen4-Max V0.3 call", () => {
   assert.equal(joined.includes("SKILL_blind_v0.1.md"), false);
   assert.equal(joined.includes("jjgamemachine.gold"), false);
   assert.equal(joined.includes("DATA_SLOT_START\nclean source\nDATA_SLOT_END"), true);
+  assert.equal(joined.includes("SOURCE_FILE: siteone.json"), false);
+  assert.match(joined, /source_file 填写该行写出的 siteone.html 或 siteone.json/);
+});
+
+test("a streaming model response keeps the answer and drops the thinking trace", async () => {
+  const fetchImpl: typeof fetch = async () => new Response([
+    'data: {"id":"r1","model":"qwen4-max","choices":[{"delta":{"reasoning_content":"先想"},"finish_reason":null}]}',
+    "",
+    'data: {"choices":[{"delta":{"content":"{\\"ok\\":"},"finish_reason":null}]}',
+    'data: {"choices":[{"delta":{"content":"true}"},"finish_reason":"stop"}],"usage":{"prompt_tokens":3,"completion_tokens":4,"total_tokens":7}}',
+    "data: [DONE]",
+    "",
+  ].join("\n"), { status: 200, headers: { "content-type": "text/event-stream" } });
+  const result = await callQwen({ cleanText: "x", apiKey: "test-key", signal: AbortSignal.timeout(1000), fetchImpl });
+  assert.deepEqual(result.analysis, { ok: true });
+  assert.equal(result.receipt.finish_reason, "stop");
+  assert.equal(result.receipt.response_id, "r1");
+  assert.equal(result.receipt.usage.total_tokens, 7);
 });
 
 test("a failed model response is not retried", async () => {
@@ -297,6 +316,151 @@ test("a model call is skipped when the same scan already has a valid analysis", 
     assert.equal(calls, 1);
     const receipt = JSON.parse(await readFile(path.join(dir, "commercial-receipt.json"), "utf8")) as { reused: boolean };
     assert.equal(receipt.reused, true);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("engine scores, certificate trust, coverage, and chapter choices stay factual", () => {
+  const html = `
+    <html><body>
+      <table class="table visited-urls"><thead><tr><th data-label="URL">URL</th></tr></thead><tbody><tr><td data-value="https://www.sewoobath.com/">home</td></tr></tbody></table>
+      <div class="content_dns_and_ssl"><table><tbody><tr><td>Trust</td><td>Trusted by system CA store</td></tr></tbody>
+      <tfoot><tr class="empty-fulltext"><td colspan="2">No rows found, please edit your search term.</td></tr></tfoot></table></div>
+    </body></html>`;
+  const siteone = {
+    qualityScores: {
+      overall: { name: "Overall", score: 9.6 },
+      categories: [{ code: "security", name: "Security", score: 9, deductions: [{ points: 1, reason: "1 page(s) with critical security findings", fix: "Add HSTS" }] }],
+    },
+    results: [{ url: "https://www.sewoobath.com/", status: "200" }],
+    tables: { "certificate-info": { rows: [{ info: "Trust", value: "Trusted by system CA store" }] } },
+  };
+  const clean = cleanSiteOne(siteone, html);
+  assert.match(clean, /ENGINE_QUALITY_SCORES/);
+  assert.match(clean, /overall Overall 9.6/);
+  assert.match(clean, /1 page\(s\) with critical security findings/);
+  assert.equal(clean.includes("Add HSTS"), false);
+  assert.equal(clean.includes("No rows found"), false);
+  assert.match(formatQualityScores(siteone.qualityScores) ?? "", /Security 9/);
+
+  const analysis = sample("www.sewoobath.com");
+  analysis.diagnosis.priority_findings.push({
+    id: "F03",
+    priority: "P1",
+    business_area: "technical_safety",
+    title: "首页安全响应头配置薄弱",
+    observed_fact: "首页缺少内容安全策略。",
+    possible_business_effect: "这是运维基线，不是获客损失。",
+    recommended_action: "补齐响应头。",
+    acceptance_checks: [],
+    needs_confirmation: [],
+    evidence_ids: ["E01"],
+    effect_level: "NOT_CHECKED",
+  });
+  analysis.source_profile.limitations.push("材料未提供质量分分值。");
+  analysis.source_profile.limitations.push("SSL/TLS 区块 Trust 行文本存在歧义，证书链信任校验结果未能从材料确认。");
+  analysis.diagnosis.technical_notes.push({
+    label: "证书信任校验结果歧义",
+    measured_fact: "Trust 为 Trusted by system CA store No rows found, please edit your search term.",
+    significance: "无法确认信任链校验的实际输出。",
+  });
+  analysis.evidence_index.push({
+    id: "E16",
+    observed_fact: "Trust 行紧接 No rows found, please edit your search term.，无法从材料确认。",
+    source_url: "https://www.sewoobath.com/",
+    raw_value: "No rows found",
+    denominator: null,
+    source_file: "siteone.json",
+    source_location: "SSL TLS INFO Trust",
+  });
+  analysis.evidence_index.push({
+    id: "E17",
+    observed_fact: "留言电话字段命中 50 次。",
+    source_url: "https://www.sewoobath.com/contact",
+    raw_value: "Occurs=50",
+    denominator: 50,
+    source_file: "siteone.json",
+    source_location: "TABLE missing-form-labels Detail / Occurs",
+  });
+  analysis.diagnosis.not_checked.push("未获得质量分分值，无法给出技术评分结论");
+  analysis.visual_plan.push({
+    id: "V17",
+    type: "data_comparison",
+    caption: "留言电话字段出现次数。",
+    visible_disclaimer: "次数来自表单表。",
+    evidence_ids: ["E17"],
+    source_asset: null,
+  });
+  const composed = composeCommercialReport({
+    analysis,
+    generatedAt: "2026-11-26T00:00:00.000Z",
+    scoreScale: { status: "DETERMINED", max_score: 10, reason: "满分 10" },
+    htmlOnlyTables: ["missing-form-labels", "non-clickable-phone-numbers"],
+    jsonTables: ["seo", "certificate-info"],
+    htmlMarkers: ["SSL TLS INFO"],
+    engineScores: { overall: { label: "Overall", score: 9.6 }, dimensions: [{ label: "Security", score: 9 }] },
+    certificateTrust: "Trusted by system CA store",
+  });
+  assert.equal(composed.ok, true);
+  if (!composed.ok) return;
+  assert.equal(composed.report.subject.limited, false);
+  assert.deepEqual(composed.report.next_step.choices.map((item) => item.id), ["F01"]);
+  const trust = composed.report.evidence.find((item) => item.id === "E16");
+  assert.equal(trust?.source_file, "siteone.html");
+  const form = composed.report.evidence.find((item) => item.id === "E17");
+  assert.equal(form?.source_file, "siteone.html");
+  assert.match(form?.source_location ?? "", /missing-form-labels/);
+  assert.equal(form?.url, "https://www.sewoobath.com/contact");
+  const visual = composed.report.visuals.find((item) => item.id === "V17");
+  assert.equal(visual?.sources[0]?.source_file, "siteone.html");
+  assert.equal(visual?.sources[0]?.raw_value, "Occurs=50");
+  assert.match(clean, /SOURCE siteone.html/);
+  assert.match(clean, /SOURCE siteone.json\nTABLE certificate-info/);
+  assert.equal(composed.report.technical_appendix.overall.score, 9.6);
+  assert.equal(composed.report.technical_appendix.dimensions[0]?.score, 9);
+  assert.equal(composed.report.technical_appendix.is_business_score, false);
+  assert.equal(composed.report.overview.verdict, "further_verification");
+  const open = structuredClone(analysis);
+  open.diagnosis.verdict = "site_rebuild_assessment";
+  open.diagnosis.verdict_evidence_ids = ["E01"];
+  const consulted = composeCommercialReport({
+    analysis: open,
+    generatedAt: "2026-11-26T00:00:00.000Z",
+    engineScores: { overall: { label: "Overall", score: 9.6 }, dimensions: [] },
+  });
+  assert.equal(consulted.ok, true);
+  if (!consulted.ok) return;
+  assert.equal(consulted.report.overview.verdict, "site_rebuild_assessment");
+  assert.equal(consulted.report.subject.limited, false);
+  assert.deepEqual(consulted.report.next_step.choices.map((item) => item.id), ["F01"]);
+  assert.equal(JSON.stringify(composed.report).includes("No rows found"), false);
+  assert.equal(JSON.stringify(composed.report).includes("质量分分值"), false);
+  assert.equal(JSON.stringify(composed.report).includes("证书链信任校验结果未能"), false);
+  assert.match(JSON.stringify(composed.report.technical_appendix.notes), /Trusted by system CA store/);
+});
+
+test("an unstated redirect count uses the scan instead of withholding the report", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "vfdiag-null-count-"));
+  const siteone = crawlJson();
+  const text = JSON.stringify(siteone);
+  const analysis = sample("factory.example");
+  analysis.source_profile.http_301 = null as unknown as number;
+  try {
+    const result = await produceCommercial({
+      dir,
+      siteone,
+      siteoneText: text,
+      html: null,
+      host: "factory.example",
+      generatedAt: "2026-11-26T00:00:00.000Z",
+      signal: AbortSignal.timeout(1000),
+      analyze: async () => ({ analysis, receipt: { model: "qwen4-max" } }),
+    });
+    assert.equal(result.available, true);
+    assert.equal(result.code, null);
+    const report = JSON.parse(await readFile(path.join(dir, "commercial-report.json"), "utf8")) as { subject: { http_301: number } };
+    assert.equal(report.subject.http_301, 0);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
