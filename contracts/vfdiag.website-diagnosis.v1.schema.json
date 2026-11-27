@@ -1,0 +1,236 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gloweaseco-leo/VF-DIAG/contracts/vfdiag.website-diagnosis.v1.schema.json",
+  "title": "VF-DIAG customer report v1",
+  "description": "VEYFRONT 只展示这份投影，不读取 SiteOne 原始 JSON 自行判断缺陷。M0 投影器不会输出 DISCUSS_REBUILD 或 SELF_FIX。报告正文语言固定为 zh。原始工件保留 7 天。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "report_schema_version",
+    "report_language",
+    "synthetic",
+    "job_ref",
+    "engine",
+    "engine_version",
+    "target",
+    "generated_at",
+    "timezone",
+    "retention_days",
+    "headline",
+    "ai_visibility",
+    "coverage",
+    "advantages",
+    "buyer_tasks",
+    "product_observation",
+    "contact_observation",
+    "language_observation",
+    "contact_channel_observation",
+    "priorities",
+    "recommended_next_step",
+    "next_step_reason",
+    "primary_action",
+    "share_blurb",
+    "artifact_kinds"
+  ],
+  "properties": {
+    "contract_version": { "const": "vfdiag.website-diagnosis.v1" },
+    "report_schema_version": { "const": "1.0" },
+    "report_language": { "const": "zh" },
+    "synthetic": { "type": "boolean" },
+    "job_ref": { "type": "string", "minLength": 8 },
+    "engine": { "const": "siteone" },
+    "engine_version": { "type": "string" },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_url", "host"],
+      "properties": {
+        "input_url": { "type": "string" },
+        "host": { "type": "string" }
+      }
+    },
+    "generated_at": { "type": "string" },
+    "timezone": { "const": "Asia/Shanghai" },
+    "retention_days": { "const": 7 },
+    "headline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domain", "scanned_at", "status", "summary"],
+      "properties": {
+        "domain": { "type": "string" },
+        "scanned_at": { "type": ["string", "null"] },
+        "status": { "enum": ["complete", "partial"] },
+        "summary": { "type": "string" }
+      }
+    },
+    "ai_visibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "statement"],
+      "properties": {
+        "status": { "const": "NOT_CHECKED" },
+        "statement": { "type": "string" }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scanned_pages", "max_urls", "max_depth", "partial", "reason_codes", "statement"],
+      "properties": {
+        "scanned_pages": { "type": "integer", "minimum": 0 },
+        "max_urls": { "const": 50 },
+        "max_depth": { "const": 3 },
+        "partial": { "type": "boolean" },
+        "reason_codes": { "type": "array", "items": { "type": "string" } },
+        "statement": { "type": "string" }
+      }
+    },
+    "advantages": { "type": "array", "maxItems": 3 },
+    "buyer_tasks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["find", "understand", "contact"],
+      "properties": {
+        "find": { "$ref": "#/$defs/buyerTask" },
+        "understand": { "$ref": "#/$defs/buyerTask" },
+        "contact": { "$ref": "#/$defs/buyerTask" }
+      }
+    },
+    "product_observation": { "$ref": "#/$defs/productObservation" },
+    "contact_observation": { "$ref": "#/$defs/contactObservation" },
+    "language_observation": { "$ref": "#/$defs/languageObservation" },
+    "contact_channel_observation": { "$ref": "#/$defs/channelObservation" },
+    "priorities": { "type": "array", "maxItems": 3, "items": { "$ref": "#/$defs/priority" } },
+    "recommended_next_step": {
+      "enum": ["KEEP", "SELF_FIX", "LOCAL_OPTIMIZE", "SPECIAL_UPGRADE", "DISCUSS_REBUILD", "CONFIRM_FIRST"]
+    },
+    "next_step_reason": { "type": "string" },
+    "primary_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "kind"],
+      "properties": {
+        "label": { "type": "string" },
+        "kind": { "enum": ["evidence", "artifact", "coverage", "rebuild"] }
+      }
+    },
+    "share_blurb": { "type": "string" },
+    "artifact_kinds": {
+      "type": "array",
+      "items": { "enum": ["html", "json"] }
+    }
+  },
+  "$defs": {
+    "claim": { "enum": ["OBSERVED", "INFERRED", "NEEDS_CONFIRMATION", "NOT_CHECKED"] },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_url", "target_url", "source_field", "excerpt", "observed_at", "observed_at_has_timezone", "scope"],
+      "properties": {
+        "source_url": { "type": ["string", "null"] },
+        "target_url": { "type": ["string", "null"] },
+        "source_field": { "type": "string" },
+        "excerpt": { "type": ["string", "null"] },
+        "observed_at": { "type": ["string", "null"] },
+        "observed_at_has_timezone": { "const": false },
+        "scope": { "type": "string" }
+      }
+    },
+    "buyerTask": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["question", "status", "fact", "impact", "impact_level", "suggestion", "source"],
+      "properties": {
+        "question": { "type": "string" },
+        "status": { "$ref": "#/$defs/claim" },
+        "fact": { "type": "string" },
+        "impact": { "type": "string" },
+        "impact_level": { "enum": ["INFERRED", "NOT_CHECKED"] },
+        "suggestion": { "type": "string" },
+        "source": { "$ref": "#/$defs/source" }
+      }
+    },
+    "priority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "claim_level", "fact", "impact", "impact_level", "suggestion", "needs_confirmation", "buyer_step", "source"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "claim_level": { "const": "OBSERVED" },
+        "fact": { "type": "string" },
+        "impact": { "type": "string" },
+        "impact_level": { "const": "INFERRED" },
+        "suggestion": { "type": "string" },
+        "needs_confirmation": { "type": "string" },
+        "buyer_step": { "enum": ["find", "understand", "contact"] },
+        "source": { "$ref": "#/$defs/source" }
+      }
+    },
+    "productObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "url", "title", "excerpt", "http_status", "specs_status", "specs_note", "source"],
+      "properties": {
+        "status": { "$ref": "#/$defs/claim" },
+        "url": { "type": ["string", "null"] },
+        "title": { "type": ["string", "null"] },
+        "excerpt": { "type": ["string", "null"] },
+        "http_status": { "type": ["string", "null"] },
+        "specs_status": { "$ref": "#/$defs/claim" },
+        "specs_note": { "type": "string" },
+        "source": { "$ref": "#/$defs/source" }
+      }
+    },
+    "contactObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "url", "title", "http_status", "source"],
+      "properties": {
+        "status": { "$ref": "#/$defs/claim" },
+        "url": { "type": ["string", "null"] },
+        "title": { "type": ["string", "null"] },
+        "http_status": { "type": ["string", "null"] },
+        "source": { "$ref": "#/$defs/source" }
+      }
+    },
+    "languageObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "sampled_pages", "cjk_chars", "latin_letters", "fact", "inference", "inference_level", "source"],
+      "properties": {
+        "status": { "$ref": "#/$defs/claim" },
+        "sampled_pages": { "type": "integer" },
+        "cjk_chars": { "type": "integer" },
+        "latin_letters": { "type": "integer" },
+        "fact": { "type": "string" },
+        "inference": { "type": "string" },
+        "inference_level": { "enum": ["INFERRED", "NOT_CHECKED"] },
+        "source": { "$ref": "#/$defs/source" }
+      }
+    },
+    "channelObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "channels", "statement", "source"],
+      "properties": {
+        "status": { "$ref": "#/$defs/claim" },
+        "channels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "url"],
+            "properties": {
+              "type": { "enum": ["email", "phone", "whatsapp", "wechat"] },
+              "url": { "type": "string" }
+            }
+          }
+        },
+        "statement": { "type": "string" },
+        "source": { "$ref": "#/$defs/source" }
+      }
+    }
+  }
+}

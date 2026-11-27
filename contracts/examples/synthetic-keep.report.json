@@ -1,0 +1,203 @@
+{
+  "contract_version": "vfdiag.website-diagnosis.v1",
+  "report_schema_version": "1.0",
+  "report_language": "zh",
+  "synthetic": true,
+  "job_ref": "synthetic-keep",
+  "engine": "siteone",
+  "engine_version": "2.5.1",
+  "target": {
+    "input_url": "https://factory.example/",
+    "host": "factory.example"
+  },
+  "generated_at": "2026-11-23T02:00:00.000Z",
+  "timezone": "Asia/Shanghai",
+  "retention_days": 7,
+  "headline": {
+    "domain": "factory.example",
+    "scanned_at": "2026-11-23 02:00:00",
+    "status": "complete",
+    "summary": "本次检查到的产品页和联系页都能打开。没有已证实的优先障碍。本次未检测 AI 是否引用该网站。"
+  },
+  "ai_visibility": {
+    "status": "NOT_CHECKED",
+    "statement": "本次未检测 AI 是否引用该网站。"
+  },
+  "coverage": {
+    "scanned_pages": 2,
+    "max_urls": 50,
+    "max_depth": 3,
+    "partial": false,
+    "reason_codes": [
+      "HTML_ONLY_NO_BROWSER"
+    ],
+    "statement": "本结论仅针对已检查页面。"
+  },
+  "advantages": [
+    {
+      "id": "product-reachable",
+      "title": "抽到的产品页可以打开",
+      "claim_level": "OBSERVED",
+      "fact": "本次访问 https://factory.example/products/valve 返回 200。标题为「闸阀 Z41H」。",
+      "source": {
+        "source_url": "https://factory.example/products/valve",
+        "target_url": "https://factory.example/products/valve",
+        "source_field": "results",
+        "excerpt": "闸阀 Z41H",
+        "observed_at": "2026-11-23 02:00:00",
+        "observed_at_has_timezone": false,
+        "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+      }
+    },
+    {
+      "id": "contact-reachable",
+      "title": "抽到的联系页可以打开",
+      "claim_level": "OBSERVED",
+      "fact": "本次访问 https://factory.example/contact 返回 200。这不能说明表单已提交或邮件已送达。",
+      "source": {
+        "source_url": "https://factory.example/contact",
+        "target_url": "https://factory.example/contact",
+        "source_field": "results",
+        "excerpt": "联系合成样本",
+        "observed_at": "2026-11-23 02:00:00",
+        "observed_at_has_timezone": false,
+        "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+      }
+    }
+  ],
+  "buyer_tasks": {
+    "find": {
+      "question": "海外买家能找到吗？",
+      "status": "OBSERVED",
+      "fact": "本次有 2 个地址返回 200。没有把这当成搜索排名或 AI 引用。",
+      "impact": "只能说明采样内的地址当时能打开。",
+      "impact_level": "INFERRED",
+      "suggestion": "排名和 AI 引用需要授权后的搜索平台数据，本次未检测。",
+      "source": {
+        "source_url": "https://factory.example/contact",
+        "target_url": null,
+        "source_field": "results",
+        "excerpt": null,
+        "observed_at": "2026-11-23 02:00:00",
+        "observed_at_has_timezone": false,
+        "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+      }
+    },
+    "understand": {
+      "question": "海外买家能看懂吗？",
+      "status": "OBSERVED",
+      "fact": "产品页 https://factory.example/products/valve 可以打开。读到的文字是「公称压力 1.6MPa。这是合成规格文字，不是真实产品。」。规格是否完整，本次没有核验。",
+      "impact": "采购员至少能看到这段文字。看不到的型号仍然未知。",
+      "impact_level": "INFERRED",
+      "suggestion": "用原文核对名称和关键规格。图片里的参数需要人工确认。",
+      "source": {
+        "source_url": "https://factory.example/products/valve",
+        "target_url": "https://factory.example/products/valve",
+        "source_field": "tables.seo.rows",
+        "excerpt": "公称压力 1.6MPa。这是合成规格文字，不是真实产品。",
+        "observed_at": "2026-11-23 02:00:00",
+        "observed_at_has_timezone": false,
+        "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+      }
+    },
+    "contact": {
+      "question": "海外买家能联系吗？",
+      "status": "OBSERVED",
+      "fact": "联系页 https://factory.example/contact 返回 200。外链里看到：email mailto:sample@example.com。页面能打开不等于表单可以提交。",
+      "impact": "采购员可能找得到这个页面。是否有人回复，本次没有验证。",
+      "impact_level": "INFERRED",
+      "suggestion": "由销售确认这个入口是否仍在使用。",
+      "source": {
+        "source_url": "https://factory.example/contact",
+        "target_url": "https://factory.example/contact",
+        "source_field": "results",
+        "excerpt": "联系合成样本",
+        "observed_at": "2026-11-23 02:00:00",
+        "observed_at_has_timezone": false,
+        "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+      }
+    }
+  },
+  "product_observation": {
+    "status": "OBSERVED",
+    "url": "https://factory.example/products/valve",
+    "title": "闸阀 Z41H",
+    "excerpt": "公称压力 1.6MPa。这是合成规格文字，不是真实产品。",
+    "http_status": "200",
+    "specs_status": "NEEDS_CONFIRMATION",
+    "specs_note": "只引用了页面简介原文，没有核验型号、压力、材质或其他参数是否齐全。",
+    "source": {
+      "source_url": "https://factory.example/products/valve",
+      "target_url": "https://factory.example/products/valve",
+      "source_field": "tables.seo.rows",
+      "excerpt": "公称压力 1.6MPa。这是合成规格文字，不是真实产品。",
+      "observed_at": "2026-11-23 02:00:00",
+      "observed_at_has_timezone": false,
+      "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+    }
+  },
+  "contact_observation": {
+    "status": "OBSERVED",
+    "url": "https://factory.example/contact",
+    "title": "联系合成样本",
+    "http_status": "200",
+    "source": {
+      "source_url": "https://factory.example/contact",
+      "target_url": "https://factory.example/contact",
+      "source_field": "results",
+      "excerpt": "联系合成样本",
+      "observed_at": "2026-11-23 02:00:00",
+      "observed_at_has_timezone": false,
+      "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+    }
+  },
+  "language_observation": {
+    "status": "OBSERVED",
+    "sampled_pages": 2,
+    "cjk_chars": 28,
+    "latin_letters": 5,
+    "fact": "已检查页面的标题和简介里，汉字 28 个，拉丁字母 5 个。",
+    "inference": "如果正文同样以中文为主，海外采购员可能无法直接阅读。",
+    "inference_level": "INFERRED",
+    "source": {
+      "source_url": "https://factory.example/contact",
+      "target_url": null,
+      "source_field": "tables.seo.rows",
+      "excerpt": "联系合成样本 联系 闸阀 Z41H 公称压力 1.6MPa。这是合成规格文字，不是真实产品。",
+      "observed_at": "2026-11-23 02:00:00",
+      "observed_at_has_timezone": false,
+      "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+    }
+  },
+  "contact_channel_observation": {
+    "status": "OBSERVED",
+    "channels": [
+      {
+        "type": "email",
+        "url": "mailto:sample@example.com"
+      }
+    ],
+    "statement": "看到的联系方式只表示链接存在，不表示已经送达或有人回复。",
+    "source": {
+      "source_url": "https://factory.example/contact",
+      "target_url": "mailto:sample@example.com",
+      "source_field": "tables.external-urls.rows",
+      "excerpt": "mailto:sample@example.com",
+      "observed_at": "2026-11-23 02:00:00",
+      "observed_at_has_timezone": false,
+      "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+    }
+  },
+  "priorities": [],
+  "recommended_next_step": "KEEP",
+  "next_step_reason": "本次采样内，选中的产品页和联系页都返回 200。没有已证实的买家路径阻断。采样之外的页面仍未检查。",
+  "primary_action": {
+    "label": "查看专业明细",
+    "kind": "artifact"
+  },
+  "share_blurb": "网站 factory.example。本次是授权声明后的公开页面扫描，不是排名，也未检测 AI 是否引用。本次没有已证实的优先障碍；采样不足的项目需要再核实。",
+  "artifact_kinds": [
+    "html",
+    "json"
+  ]
+}

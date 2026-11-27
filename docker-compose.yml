@@ -1,0 +1,36 @@
+name: vf-diag
+
+services:
+  worker:
+    build: .
+    ports:
+      - "127.0.0.1:8787:8787"
+    environment:
+      VFDIAG_SERVICE_TOKEN: ${VFDIAG_SERVICE_TOKEN:-local-docker-dev-token-change-me}
+      VFDIAG_LOCAL_ONLY: "1"
+      VFDIAG_SYNTHETIC_HOSTS: ""
+    volumes:
+      - vfdiag-data:/var/lib/vfdiag
+    networks:
+      - vfdiag
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8787/v1/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  vfdiag-data:
+
+networks:
+  vfdiag:
+    ipam:
+      config:
+        - subnet: 172.16.50.0/24

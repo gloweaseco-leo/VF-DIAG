@@ -1,0 +1,18 @@
+{
+  "command": "docker compose -f docker-compose.yml -f docker-compose.synthetic.yml up -d --build && docker compose -f docker-compose.yml -f docker-compose.synthetic.yml exec -T worker node src/m0-check.ts",
+  "exit_code": 0,
+  "ran_at": "2026-11-23T03:05:46Z",
+  "siteone_tarball_sha256": "bd96b9502563aea2581fc248625871e69b60d7f1bb68a484f226c551c73706fd",
+  "siteone_binary_sha256": "4b0b40d99ec3911f330222c666018dc2bb29bea7368fd7100e2cd9f56ab8e15b",
+  "publish": "127.0.0.1:8787",
+  "job_state": "complete",
+  "headline_status": "partial",
+  "synthetic": true,
+  "checked_pages": 4,
+  "product": "OBSERVED",
+  "contact": "OBSERVED",
+  "next": "LOCAL_OPTIMIZE",
+  "ai": "NOT_CHECKED",
+  "job_ref": "redacted",
+  "note": "本地复跑。CI 工作流已提交，但这次记录本身不是 CI 结果，也不是客户实测 GO。"
+}

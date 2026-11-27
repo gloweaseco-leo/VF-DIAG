@@ -64,5 +64,37 @@ Explicit website owner/authorized operator permission; controlled target/redirec
 
 See the repository Issues for actionable Cursor work packages. All customer examples must be derived from real authorized scans or explicitly marked synthetic. Never claim production readiness until verified.
 
+## Local worker
+
+M0 runs in local Docker, not as a bare process on the developer machine. The image pins SiteOne Crawler v2.5.1 (MIT) by tarball SHA-256. The API listens inside the container and is published only on `127.0.0.1:8787`.
+
+```bash
+docker compose up --build
+```
+
+Synthetic crawl, including the local fixture site:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.synthetic.yml up --build
+docker compose -f docker-compose.yml -f docker-compose.synthetic.yml exec worker node src/m0-check.ts
+npm run local-bff
+```
+
+`npm run local-bff` calls the published `127.0.0.1:8787` from the host. It checks auth rejection, a private target, one-at-a-time capacity, a synthetic scan, report and attachment downloads, idempotency, and cancel. It does not scan a real site.
+
+The default worker rejects private and loopback targets. `fixture-site` is allowed only when `docker-compose.synthetic.yml` sets `VFDIAG_SYNTHETIC_HOSTS`. Customer reports follow `contracts/vfdiag.website-diagnosis.v1.schema.json`. Unit tests do not need Docker: `npm test`.
+
+The compose placeholder token is accepted only with `VFDIAG_LOCAL_ONLY=1`. That flag does not open or close ports; the published address stays `127.0.0.1:8787`. Seven days after a job is created, the worker deletes `siteone.html`, `siteone.json` and `report.json`. A local test pass is not a customer GO.
+
+Vercel Preview is not on the tailnet, so the remote path is Tailscale Funnel rather than tailnet-only Serve. Funnel terminates HTTPS and proxies to `127.0.0.1:8787`. Port 8787 stays unpublished on the LAN. On this machine ports 443 and 8443 are already in use, so VF-DIAG uses Funnel port 10000:
+
+```bash
+npm run issue-token
+docker compose -f docker-compose.yml -f docker-compose.synthetic.yml -f docker-compose.funnel.yml up --build -d
+tailscale funnel --bg --https=10000 http://127.0.0.1:8787
+```
+
+`npm run issue-token` writes a 32-byte random `VFDIAG_SERVICE_TOKEN` into gitignored `.env` and does not print it. Put that same variable on the Vercel Preview project. It is not a VRAE key. `VFDIAG_FUNNEL=1` refuses the placeholder and caps one caller at 180 requests a minute, which covers one diagnosis polled every two seconds. The funnel overlay also turns on container egress filtering: private, loopback, link-local, metadata and CGNAT destinations are rejected, while Docker DNS and the pinned `172.16.50.0/24` fixture subnet stay reachable. `npm run i2-check` records the public health check, auth rejection, synthetic diagnosis, redirect, subresource, egress, timeout and restart evidence without writing the token.
+
 ---
 2026-11-22 · VEYFRONT Owner decision · No implementation or public deployment yet.

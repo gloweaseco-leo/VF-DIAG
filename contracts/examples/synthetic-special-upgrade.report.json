@@ -1,0 +1,224 @@
+{
+  "contract_version": "vfdiag.website-diagnosis.v1",
+  "report_schema_version": "1.0",
+  "report_language": "zh",
+  "synthetic": true,
+  "job_ref": "synthetic-upgrade",
+  "engine": "siteone",
+  "engine_version": "2.5.1",
+  "target": {
+    "input_url": "https://factory.example/",
+    "host": "factory.example"
+  },
+  "generated_at": "2026-11-23T02:00:00.000Z",
+  "timezone": "Asia/Shanghai",
+  "retention_days": 7,
+  "headline": {
+    "domain": "factory.example",
+    "scanned_at": "2026-11-23 02:00:00",
+    "status": "partial",
+    "summary": "采样里有一条已证实的产品链接返回 404。本次未检测 AI 是否引用该网站。"
+  },
+  "ai_visibility": {
+    "status": "NOT_CHECKED",
+    "statement": "本次未检测 AI 是否引用该网站。"
+  },
+  "coverage": {
+    "scanned_pages": 3,
+    "max_urls": 50,
+    "max_depth": 3,
+    "partial": true,
+    "reason_codes": [
+      "HTML_ONLY_NO_BROWSER"
+    ],
+    "statement": "本结论仅针对已检查页面。采样不足的部分不能当成网站缺陷。"
+  },
+  "advantages": [
+    {
+      "id": "home-reachable",
+      "title": "首页本次可以打开",
+      "claim_level": "OBSERVED",
+      "fact": "本次访问 https://factory.example/ 返回 200。",
+      "source": {
+        "source_url": "https://factory.example/",
+        "target_url": "https://factory.example/",
+        "source_field": "results",
+        "excerpt": "合成样本首页",
+        "observed_at": "2026-11-23 02:00:00",
+        "observed_at_has_timezone": false,
+        "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+      }
+    }
+  ],
+  "buyer_tasks": {
+    "find": {
+      "question": "海外买家能找到吗？",
+      "status": "OBSERVED",
+      "fact": "本次抓到 1 个返回 200 的地址，同时 https://factory.example/products/valve 返回 404。这不是搜索排名。",
+      "impact": "已经点到这条失效链接的人会中断。没有证据说明搜索或 AI 是否展示了这个网站。",
+      "impact_level": "INFERRED",
+      "suggestion": "先修这条失效链接，再谈收录。",
+      "source": {
+        "source_url": "https://factory.example/",
+        "target_url": "https://factory.example/products/valve",
+        "source_field": "tables.404.rows",
+        "excerpt": "404",
+        "observed_at": "2026-11-23 02:00:00",
+        "observed_at_has_timezone": false,
+        "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+      }
+    },
+    "understand": {
+      "question": "海外买家能看懂吗？",
+      "status": "OBSERVED",
+      "fact": "抽到的产品链接 https://factory.example/products/valve 返回 404，所以本次没有读到该页规格。",
+      "impact": "走这条链接的人看不到产品说明。",
+      "impact_level": "INFERRED",
+      "suggestion": "先恢复页面，再核对规格是文字还是图片。",
+      "source": {
+        "source_url": "https://factory.example/",
+        "target_url": "https://factory.example/products/valve",
+        "source_field": "tables.404.rows",
+        "excerpt": "404",
+        "observed_at": "2026-11-23 02:00:00",
+        "observed_at_has_timezone": false,
+        "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+      }
+    },
+    "contact": {
+      "question": "海外买家能联系吗？",
+      "status": "OBSERVED",
+      "fact": "联系链接 https://factory.example/contact 返回 404。本次没有提交询盘。",
+      "impact": "只走这条链接的采购员可能找不到入口。其他渠道是否存在，本次未知。",
+      "impact_level": "INFERRED",
+      "suggestion": "修复链接，并确认邮箱或 WhatsApp 是否另外公开。",
+      "source": {
+        "source_url": "https://factory.example/",
+        "target_url": "https://factory.example/contact",
+        "source_field": "tables.404.rows",
+        "excerpt": "404",
+        "observed_at": "2026-11-23 02:00:00",
+        "observed_at_has_timezone": false,
+        "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+      }
+    }
+  },
+  "product_observation": {
+    "status": "OBSERVED",
+    "url": "https://factory.example/products/valve",
+    "title": null,
+    "excerpt": null,
+    "http_status": "404",
+    "specs_status": "NOT_CHECKED",
+    "specs_note": "链接返回 404，规格未核查。",
+    "source": {
+      "source_url": "https://factory.example/",
+      "target_url": "https://factory.example/products/valve",
+      "source_field": "tables.404.rows",
+      "excerpt": "404",
+      "observed_at": "2026-11-23 02:00:00",
+      "observed_at_has_timezone": false,
+      "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+    }
+  },
+  "contact_observation": {
+    "status": "OBSERVED",
+    "url": "https://factory.example/contact",
+    "title": null,
+    "http_status": "404",
+    "source": {
+      "source_url": "https://factory.example/",
+      "target_url": "https://factory.example/contact",
+      "source_field": "tables.404.rows",
+      "excerpt": "404",
+      "observed_at": "2026-11-23 02:00:00",
+      "observed_at_has_timezone": false,
+      "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+    }
+  },
+  "language_observation": {
+    "status": "OBSERVED",
+    "sampled_pages": 1,
+    "cjk_chars": 18,
+    "latin_letters": 0,
+    "fact": "已检查页面的标题和简介里，汉字 18 个，拉丁字母 0 个。",
+    "inference": "如果正文同样以中文为主，海外采购员可能无法直接阅读。",
+    "inference_level": "INFERRED",
+    "source": {
+      "source_url": "https://factory.example/",
+      "target_url": null,
+      "source_field": "tables.seo.rows",
+      "excerpt": "合成样本首页 产品和联系链接都失效。 首页",
+      "observed_at": "2026-11-23 02:00:00",
+      "observed_at_has_timezone": false,
+      "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+    }
+  },
+  "contact_channel_observation": {
+    "status": "NOT_CHECKED",
+    "channels": [],
+    "statement": "本次未在外链中看到邮箱、电话、WhatsApp 或微信。",
+    "source": {
+      "source_url": null,
+      "target_url": null,
+      "source_field": "tables.external-urls.rows",
+      "excerpt": null,
+      "observed_at": "2026-11-23 02:00:00",
+      "observed_at_has_timezone": false,
+      "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+    }
+  },
+  "priorities": [
+    {
+      "id": "product-404-1",
+      "title": "一条产品链接打不开",
+      "claim_level": "OBSERVED",
+      "fact": "本次从 https://factory.example/ 发现的链接 https://factory.example/products/valve 返回 404。",
+      "impact": "通过这条链接继续看产品的采购员，可能到不了详情页。",
+      "impact_level": "INFERRED",
+      "suggestion": "核对这条链接和对应产品页，修复后用同范围再扫一次。",
+      "needs_confirmation": "该链接是不是还在用的主产品入口，需要网站管理者确认。",
+      "buyer_step": "understand",
+      "source": {
+        "source_url": "https://factory.example/",
+        "target_url": "https://factory.example/products/valve",
+        "source_field": "tables.404.rows",
+        "excerpt": "404",
+        "observed_at": "2026-11-23 02:00:00",
+        "observed_at_has_timezone": false,
+        "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+      }
+    },
+    {
+      "id": "contact-404-2",
+      "title": "一条联系链接打不开",
+      "claim_level": "OBSERVED",
+      "fact": "本次从 https://factory.example/ 发现的链接 https://factory.example/contact 返回 404。",
+      "impact": "沿着这条链接想询盘的采购员，可能到不了联系页。",
+      "impact_level": "INFERRED",
+      "suggestion": "核对联系入口地址，修复后复查。本次没有提交表单。",
+      "needs_confirmation": "站上是否还有邮箱、WhatsApp 或其他入口，需要网站管理者确认。",
+      "buyer_step": "contact",
+      "source": {
+        "source_url": "https://factory.example/",
+        "target_url": "https://factory.example/contact",
+        "source_field": "tables.404.rows",
+        "excerpt": "404",
+        "observed_at": "2026-11-23 02:00:00",
+        "observed_at_has_timezone": false,
+        "scope": "SiteOne v2.5.1，最多 50 个 URL，深度不超过 3，每秒最多 1 个请求，未启用浏览器渲染。"
+      }
+    }
+  ],
+  "recommended_next_step": "SPECIAL_UPGRADE",
+  "next_step_reason": "产品路径和联系路径都有已证实的 404，这是两条相关的买家路径障碍，可以讨论集中处理。这不是重建结论。",
+  "primary_action": {
+    "label": "讨论网站升级",
+    "kind": "rebuild"
+  },
+  "share_blurb": "网站 factory.example。本次是授权声明后的公开页面扫描，不是排名，也未检测 AI 是否引用。优先事项：本次从 https://factory.example/ 发现的链接 https://factory.example/products/valve 返回 404。",
+  "artifact_kinds": [
+    "html",
+    "json"
+  ]
+}
