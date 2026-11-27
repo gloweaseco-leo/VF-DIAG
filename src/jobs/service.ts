@@ -8,11 +8,23 @@ import {
   MAX_REQS_PER_SEC,
   MAX_URLS,
   RETENTION_DAYS,
+  SITE_SUCCESS_WINDOW_MS,
   WALL_CLOCK_MS,
 } from "../constants.ts";
 import type { CreateJobBody } from "../http/request.ts";
 import { PdfRenderError } from "../commercial/pdf.ts";
 import { MODEL_TIMEOUT_MS } from "../commercial/qwen.ts";
+import {
+  type AdmissionIdentity,
+  canonicalHost,
+  decideAdmission,
+  loadLedger,
+  rawHost,
+  reserveAdmission,
+  saveLedger,
+  syncAdmission,
+  type Ledger,
+} from "./admission.ts";
 import { produceCommercial, type Analyzer } from "../commercial/stage.ts";
 import { projectReport } from "../report/project.ts";
 import type { CustomerReport, SiteOneJson } from "../report/types.ts";
@@ -64,6 +76,8 @@ export type JobRecord = {
   pdf_available: boolean;
   pdf_reason: string | null;
   engine_version: typeof ENGINE_VERSION;
+  canonical_host?: string;
+  admission_browser?: string;
 };
 
 export type JobStatus = {
@@ -112,11 +126,26 @@ export function createJobService(options: {
 }) {
   const now = options.now ?? (() => new Date());
   const jobsDir = path.join(options.dataDir, "jobs");
+  const ledgerFile = path.join(options.dataDir, "admission.json");
   const aborts = new Map<string, AbortController>();
   let chain: Promise<unknown> = Promise.resolve();
+  let lockDepth = 0;
 
   function lock<T>(fn: () => Promise<T>): Promise<T> {
-    const run = chain.then(fn, fn);
+    if (lockDepth > 0) {
+      lockDepth += 1;
+      return fn().finally(() => {
+        lockDepth -= 1;
+      });
+    }
+    const run = chain.then(async () => {
+      lockDepth = 1;
+      try {
+        return await fn();
+      } finally {
+        lockDepth = 0;
+      }
+    });
     chain = run.then(
       () => undefined,
       () => undefined,
@@ -153,11 +182,9 @@ export function createJobService(options: {
           });
           continue;
         }
-        await writeJob({
-          ...job,
+        await update(job.job_ref, {
           state: "failed",
           report_available: false,
-          updated_at: now().toISOString(),
           reason_code: "WORKER_RESTARTED",
           reason: "Worker 重启前任务未结束，本次没有沿用中断的扫描。",
         });
@@ -165,15 +192,25 @@ export function createJobService(options: {
     }
   }
 
-  async function create(body: CreateJobBody): Promise<{ status: number; body: unknown }> {
+  async function create(body: CreateJobBody, admission?: AdmissionIdentity | null): Promise<{ status: number; body: unknown }> {
     return lock(async () => {
       const existing = await findByIdempotency(body.idempotency_key);
       const hash = bodyHash(body);
       if (existing) {
-        if (existing.body_hash !== hash) {
+        if (existing.body_hash !== hash || (admission && existing.admission_browser !== admission.browser)) {
           return error(409, "IDEMPOTENCY_CONFLICT", "同一个幂等键对应了不同的请求。");
         }
         return { status: 200, body: toStatus(existing) };
+      }
+      const paid = body.model_authorized === true && !isSyntheticUrl(body.url);
+      const host = canonicalHost(body.url);
+      let ledger: Ledger | null = null;
+      if (paid && admission !== undefined) {
+        if (!host) return error(400, "TARGET_URL_INVALID", "网址无法解析。只接受完整的 http 或 https 网址。");
+        if (!admission) return error(400, "ADMISSION_REQUIRED", "付费诊断需要当日的浏览器和网络标识。");
+        ledger = await currentLedger();
+        const decision = decideAdmission(ledger, { now: now(), host, browser: admission.browser, ip: admission.ip });
+        if (!decision.ok) return error(decision.status, decision.code, decision.message);
       }
       if (await hasActive()) {
         return error(429, "JOB_CAPACITY", "已有一个扫描在进行。M0 同时只跑一个任务。");
@@ -212,7 +249,12 @@ export function createJobService(options: {
         pdf_available: false,
         pdf_reason: null,
         engine_version: ENGINE_VERSION,
+        ...(host ? { canonical_host: host } : {}),
+        ...(admission ? { admission_browser: admission.browser } : {}),
       };
+      if (paid && ledger && host && admission) {
+        await saveLedger(ledgerFile, reserveAdmission(ledger, { now: now(), host, browser: admission.browser, ip: admission.ip, jobRef: job.job_ref }));
+      }
       await writeJob(job);
       const controller = new AbortController();
       aborts.set(job.job_ref, controller);
@@ -361,11 +403,15 @@ export function createJobService(options: {
     const signal = AbortSignal.any([controller.signal, timeout]);
     try {
       const currentJob = await readJob(jobRef);
+      const priorModel = currentJob?.canonical_host ? (await currentLedger()).sites[currentJob.canonical_host] : undefined;
+      const modelAlreadyUsed = Boolean(priorModel?.model_job && priorModel.model_job !== jobRef && priorModel.model_at && now().getTime() - Date.parse(priorModel.model_at) < SITE_SUCCESS_WINDOW_MS);
       const blocked = currentJob?.synthetic && currentJob.model_authorized
         ? { code: "COMMERCIAL_SYNTHETIC", message: "合成测试不调用付费模型。" }
-        : currentJob?.model_authorized
-          ? undefined
-          : { code: "MODEL_NOT_AUTHORIZED", message: "这次授权只覆盖公开页面扫描，不能据此调用模型。" };
+        : modelAlreadyUsed
+          ? { code: "MODEL_INTERRUPTED", message: "同一网站已经发起过模型调用，为避免重复付费，没有再次调用。" }
+          : currentJob?.model_authorized
+            ? undefined
+            : { code: "MODEL_NOT_AUTHORIZED", message: "这次授权只覆盖公开页面扫描，不能据此调用模型。" };
       await produceCommercial({
         dir,
         siteone: parsed,
@@ -579,6 +625,43 @@ export function createJobService(options: {
     );
   }
 
+  function isSyntheticUrl(input: string): boolean {
+    const names = [rawHost(input), canonicalHost(input)];
+    return names.some((name) => name !== null && options.syntheticHosts.has(name));
+  }
+
+  async function currentLedger(): Promise<Ledger> {
+    const ledger = await loadLedger(ledgerFile);
+    let dirty = false;
+    for (const site of Object.values(ledger.sites)) {
+      if (!site.active_job) continue;
+      const job = await readJob(site.active_job);
+      if (!job || !ACTIVE.has(job.state) || Date.parse(job.expires_at) <= now().getTime()) {
+        site.active_job = null;
+        dirty = true;
+      }
+    }
+    if (dirty) await saveLedger(ledgerFile, ledger);
+    return ledger;
+  }
+
+  async function syncJob(job: JobRecord): Promise<void> {
+    if (!job.canonical_host) return;
+    const receipt = await readFile(path.join(jobDir(job.job_ref), "commercial-receipt.json"), "utf8").then((raw) => JSON.parse(raw) as { request_sent?: unknown; model_receipt?: { estimated_cost_cny?: unknown } }).catch(() => null);
+    const cost = receipt?.model_receipt?.estimated_cost_cny;
+    const synced = syncAdmission(await currentLedger(), {
+      now: now(),
+      host: job.canonical_host,
+      jobRef: job.job_ref,
+      active: ACTIVE.has(job.state) && Date.parse(job.expires_at) > now().getTime(),
+      success: job.customer_report_available === true,
+      requestSent: receipt?.request_sent === true,
+      costCny: typeof cost === "number" ? cost : null,
+    });
+    await saveLedger(ledgerFile, synced.ledger);
+    if (synced.warn) console.log(synced.warn);
+  }
+
   async function hasActive(): Promise<boolean> {
     const { readdir } = await import("node:fs/promises");
     const names = await readdir(jobsDir).catch(() => []);
@@ -600,10 +683,15 @@ export function createJobService(options: {
   }
 
   async function update(jobRef: string, patch: Partial<JobRecord>): Promise<JobRecord> {
+    return lock(() => updateUnlocked(jobRef, patch));
+  }
+
+  async function updateUnlocked(jobRef: string, patch: Partial<JobRecord>): Promise<JobRecord> {
     const current = await readJob(jobRef);
     if (!current) throw new Error(`missing job ${jobRef}`);
     if (current.state === "cancelled" && patch.state !== "cancelled" && patch.state !== "expired") return current;
     const next = { ...current, ...patch, updated_at: now().toISOString() };
+    if (next.model_authorized && next.canonical_host && !isSyntheticUrl(next.target_url)) await syncJob(next);
     await writeJob(next);
     return next;
   }

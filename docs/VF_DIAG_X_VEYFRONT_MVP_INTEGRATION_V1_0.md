@@ -73,7 +73,9 @@ BFF必须执行同源/CSRF、用户会话、最小频率限制、脱敏错误映
 ### VF-DIAG 内部服务
 与 BFF 一一对应的最小 `POST/GET /v1/jobs`、`POST /v1/jobs/{job_ref}/cancel`、`GET /v1/jobs/{job_ref}/report`、`GET /v1/jobs/{job_ref}/artifacts/{kind}`。浏览器不调用这些路由。调用方带 `Authorization: Bearer`，令牌只放在 VEYFRONT 服务端。kind 只允许 `html` 和 `json`，响应是附件，不在页面里执行 HTML。
 
-**创建请求字段**：`contract_version=vfdiag.website-diagnosis.v1`、`url`、`language=zh|en`、`authorization={version:2026-11-22, accepted:true, accepted_at, text_hash}`、`idempotency_key`。`text_hash` 是授权声明原文的 SHA-256。`language=en` 可以提交，但 `report_language` 固定为 `zh`。同一幂等键加同一请求返回已有任务；同一幂等键换了网址返回 `409 IDEMPOTENCY_CONFLICT`。M0 同时只接受一个未结束任务，多余请求返回 `429 JOB_CAPACITY`。
+**创建请求字段**：`contract_version=vfdiag.website-diagnosis.v1`、`url`、`language=zh|en`、`authorization={version:2026-11-22, accepted:true, accepted_at, text_hash}`、`idempotency_key`。`text_hash` 是授权声明原文的 SHA-256。`language=en` 可以提交，但 `report_language` 固定为 `zh`。同一幂等键加同一请求返回已有任务；同一幂等键换了网址，或换了浏览器标识，返回 `409 IDEMPOTENCY_CONFLICT`，响应里没有任务编号。M0 同时只接受一个未结束任务，多余请求返回 `429 JOB_CAPACITY`。
+
+付费诊断（增长授权，且不是合成主机）还必须带 `X-VF-Admission-Day`（上海日期 `YYYY-MM-DD`）、`X-VF-Admission-Browser` 和 `X-VF-Admission-IP`（各 64 位小写十六进制，按日脱敏）。只去掉 `www` 或改页面路径视为同一网站，其他子域名分开计算。同一网站 7 天内已完成一次商业诊断返回 `409 SITE_RECENTLY_DIAGNOSED`；正在诊断返回 `409 SITE_DIAGNOSIS_IN_PROGRESS`。这些拒绝不返回已有任务编号或报告。同一浏览器每天一个新网站，返回 `429 BROWSER_DAILY_LIMIT`。同一网络标识每天最多 5 个新任务，返回 `429 IP_DAILY_LIMIT`。当日模型费用达到 6 元后不再接受新的付费诊断，返回 `429 DAILY_BUDGET_LIMIT`；达到 5 元只记预警。已有报告和 PDF 仍可读取。失败、取消或重启后的重试不第二次调用模型。缺少或过期的准入头返回 `400 ADMISSION_REQUIRED`。只扫描授权和合成任务不走这套限额。
 
 **任务状态**：`queued | validating | running | summarizing | complete | partial | failed | cancelled | expired`。状态体包含 `job_ref,state,updated_at,expires_at,scope,checked_pages,remaining_unknown,reason_code,reason,poll_after_seconds,report_available,target_host,synthetic,report_language`。`remaining_unknown` 在 M0 恒为 true，不返回百分比。工件和报告保留 7 天。到期后读取返回 `410`，并删除该任务目录里的 `siteone.html`、`siteone.json`、`report.json`；`job.json` 只留下过期状态。Worker 重启时也会清掉已到期任务的这三份工件。
 
@@ -89,7 +91,7 @@ BFF必须执行同源/CSRF、用户会话、最小频率限制、脱敏错误映
 | `synthetic-special-upgrade.report.json` | 产品路径和联系路径都有已证实 404。下一步是讨论升级，不是重建。 |
 | `synthetic-engine-failed.status.json` | 扫描没有留下 JSON。任务失败，不发布客户报告。 |
 
-稳定错误码包括：`TARGET_URL_INVALID`、`TARGET_SCHEME_REJECTED`、`TARGET_HOST_REJECTED`、`TARGET_PRIVATE_ADDRESS`、`TARGET_DNS_FAILED`、`TARGET_PORT_REJECTED`、`AUTHORIZATION_REQUIRED`、`AUTHORIZATION_TEXT_MISMATCH`、`IDEMPOTENCY_CONFLICT`、`JOB_CAPACITY`、`JOB_NOT_FOUND`、`REPORT_NOT_READY`、`ARTIFACT_NOT_FOUND`、`ENGINE_BINARY_MISSING`、`ENGINE_VERSION_MISMATCH`、`ENGINE_TIMEOUT`、`ENGINE_FAILED`、`UNSAFE_OFFHOST`、`WORKER_RESTARTED`、`EXPIRED`。
+稳定错误码包括：`TARGET_URL_INVALID`、`TARGET_SCHEME_REJECTED`、`TARGET_HOST_REJECTED`、`TARGET_PRIVATE_ADDRESS`、`TARGET_DNS_FAILED`、`TARGET_PORT_REJECTED`、`AUTHORIZATION_REQUIRED`、`AUTHORIZATION_TEXT_MISMATCH`、`IDEMPOTENCY_CONFLICT`、`JOB_CAPACITY`、`JOB_NOT_FOUND`、`REPORT_NOT_READY`、`ARTIFACT_NOT_FOUND`、`ENGINE_BINARY_MISSING`、`ENGINE_VERSION_MISMATCH`、`ENGINE_TIMEOUT`、`ENGINE_FAILED`、`UNSAFE_OFFHOST`、`WORKER_RESTARTED`、`EXPIRED`、`ADMISSION_REQUIRED`、`SITE_RECENTLY_DIAGNOSED`、`SITE_DIAGNOSIS_IN_PROGRESS`、`BROWSER_DAILY_LIMIT`、`IP_DAILY_LIMIT`、`DAILY_BUDGET_LIMIT`。
 
 **契约约束**：BFF 只消费上述投影。未知 `report_schema_version` 关闭报告展示。扫描完成但产品或联系仍未核实的，任务可以是 `complete`，报告 `headline.status` 为 `partial`。
 
