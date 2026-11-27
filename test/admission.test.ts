@@ -6,6 +6,7 @@ import test from "node:test";
 import { MODEL_AUTHORIZATION_VERSION } from "../src/constants.ts";
 import { authorizationTextHash, modelAuthorizationTextHash } from "../src/http/request.ts";
 import { createHttpServer } from "../src/http/server.ts";
+import { callCeilingFen, minimumCallCeilingFen } from "../src/commercial/qwen.ts";
 import { canonicalHost, decideAdmission, emptyLedger, readAdmissionHeaders, readBudgetCaps, reserveAdmission, shanghaiDay, syncAdmission } from "../src/jobs/admission.ts";
 import { createJobService } from "../src/jobs/service.ts";
 import type { CrawlResult } from "../src/siteone/run.ts";
@@ -178,11 +179,16 @@ test("budget caps bill the actual charge once and stay inside their own period",
   assert.equal(site.ok, false);
   if (!site.ok) assert.equal(site.message.includes("单站"), true);
 
-  ledger = syncAdmission(ledger, { now: nov26, host: "open.example", jobRef: "unknown", at: nov26.toISOString(), active: true, success: false, settled: false, requestSent: true, connectionFailure: false, costCny: null }).ledger;
+  ledger = syncAdmission(ledger, { now: nov26, host: "open.example", jobRef: "unknown", at: nov26.toISOString(), active: true, success: false, settled: false, requestSent: true, connectionFailure: false, costCny: null, ceilingFen: 80 }).ledger;
+  assert.equal(ledger.charges.unknown.ceiling_fen, 80);
   assert.equal(decideAdmission(ledger, { now: nov26, host: "third.example", browser: browserB, ip: "e".repeat(64) }, { ...caps, dailyFen: 200 }).ok, true);
-  ledger = syncAdmission(ledger, { now: nov27, host: "open.example", jobRef: "unknown", at: "2026-12-02T00:00:00.000Z", active: false, success: false, settled: true, requestSent: true, connectionFailure: false, costCny: null }).ledger;
+  const tight = decideAdmission(ledger, { now: nov26, host: "third.example", browser: browserB, ip: "e".repeat(64) }, { ...caps, dailyFen: 190 }, 20);
+  assert.equal(tight.ok, false);
+  if (!tight.ok) assert.equal(tight.message.includes("下一次"), true);
+  ledger = syncAdmission(ledger, { now: nov27, host: "open.example", jobRef: "unknown", at: "2026-12-02T00:00:00.000Z", active: false, success: false, settled: true, requestSent: true, connectionFailure: false, costCny: null, ceilingFen: 500 }).ledger;
   assert.equal(ledger.charges.unknown.unresolved, true);
   assert.equal(ledger.charges.unknown.fen, 0);
+  assert.equal(ledger.charges.unknown.ceiling_fen, 500);
   assert.equal(ledger.charges.unknown.at, nov26.toISOString());
   const held = decideAdmission(ledger, { now: nov26, host: "third.example", browser: browserB, ip: "e".repeat(64) }, { ...caps, dailyFen: 600 });
   assert.equal(held.ok, false);
@@ -197,6 +203,88 @@ test("budget caps bill the actual charge once and stay inside their own period",
   assert.equal(ledger.charges.offline.blocks_model, false);
   assert.equal(readBudgetCaps({ VFDIAG_SITE_MODEL_BUDGET_CNY: "6.5", VFDIAG_DAILY_MODEL_BUDGET_CNY: "bad", VFDIAG_MONTHLY_MODEL_BUDGET_CNY: "" }).dailyFen, 3_000);
   assert.equal(readBudgetCaps({ VFDIAG_SITE_MODEL_BUDGET_CNY: "6.5" }).siteFen, 650);
+  const floor = minimumCallCeilingFen();
+  assert.ok(floor > 0);
+  assert.ok(floor < 600);
+  assert.ok(callCeilingFen("甲".repeat(8000)) > floor);
+  const clear = emptyLedger();
+  const ahead = decideAdmission(clear, { now: nov26, host: "clear.example", browser: browserB, ip: "f".repeat(64) }, { ...caps, dailyFen: floor }, floor);
+  assert.equal(ahead.ok, true);
+  const overrun = decideAdmission(clear, { now: nov26, host: "clear.example", browser: browserB, ip: "f".repeat(64) }, { ...caps, dailyFen: floor - 1 }, floor);
+  assert.equal(overrun.ok, false);
+  if (!overrun.ok) assert.equal(overrun.message.includes("下一次"), true);
+});
+
+test("a paid create stops before the model when the next call cannot fit", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "vfdiag-admit-ceiling-"));
+  const floor = minimumCallCeilingFen();
+  let calls = 0;
+  const jobs = createJobService({
+    dataDir: dir,
+    syntheticHosts: new Set(),
+    now: () => clock,
+    budgets: { siteFen: 100_000, dailyFen: floor - 1, monthlyFen: 100_000 },
+    lookup: async () => ["93.184.216.34"],
+    run: writeCrawl,
+    analyze: async () => {
+      calls += 1;
+      return { analysis: sample("factory.example"), receipt: { estimated_cost_cny: 0.2 } };
+    },
+  });
+  await jobs.recover();
+  try {
+    const created = await jobs.create(paid("https://factory.example/", "admit-ceiling"), { browser: browserA, ip: network });
+    assert.equal(created.status, 429);
+    assert.equal(code(created.body), "DAILY_BUDGET_LIMIT");
+    assert.equal((created.body as { error: { message: string } }).error.message.includes("下一次"), true);
+    assert.equal("job_ref" in (created.body as object), false);
+    assert.equal(calls, 0);
+  } finally {
+    await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 40 });
+  }
+});
+
+test("a larger scan is refused at the model call even when the minimum ceiling still fits", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "vfdiag-admit-headroom-"));
+  const floor = minimumCallCeilingFen();
+  let calls = 0;
+  const jobs = createJobService({
+    dataDir: dir,
+    syntheticHosts: new Set(),
+    now: () => clock,
+    budgets: { siteFen: 100_000, dailyFen: floor, monthlyFen: 100_000 },
+    lookup: async () => ["93.184.216.34"],
+    run: async (options) => {
+      const body = crawlJson();
+      body.results.push({ url: `https://factory.example/${"甲".repeat(20_000)}`, status: "200", type: 1 });
+      const jsonText = JSON.stringify(body);
+      await writeFile(options.htmlFile, "<html>synthetic</html>");
+      await writeFile(options.jsonFile, jsonText);
+      return { exitCode: 0, timedOut: false, cancelled: false, jsonText, html: Buffer.from("<html>synthetic</html>"), errorCode: null, errorMessage: null };
+    },
+    analyze: async () => {
+      calls += 1;
+      return { analysis: sample("factory.example"), receipt: { estimated_cost_cny: 0.2 } };
+    },
+  });
+  await jobs.recover();
+  try {
+    const created = await jobs.create(paid("https://factory.example/", "admit-headroom"), { browser: browserA, ip: network });
+    assert.equal(created.status, 202);
+    const jobRef = (created.body as { job_ref: string }).job_ref;
+    const done = await waitState(jobs, jobRef, ["complete", "failed", "partial"]);
+    assert.equal(done.customer_report_available, false);
+    assert.equal(done.customer_report_reason, "DAILY_BUDGET_LIMIT");
+    assert.equal(calls, 0);
+    const error = JSON.parse(await readFile(path.join(dir, "jobs", jobRef, "commercial-error.json"), "utf8")) as { message?: string };
+    assert.equal(error.message?.includes("下一次"), true);
+    const receipt = await readFile(path.join(dir, "jobs", jobRef, "commercial-receipt.json"), "utf8").catch(() => "");
+    assert.equal(receipt.includes("request_sent"), false);
+    const ledger = JSON.parse(await readFile(path.join(dir, "admission.json"), "utf8")) as { charges?: Record<string, unknown> };
+    assert.equal(ledger.charges?.[jobRef], undefined);
+  } finally {
+    await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 40 });
+  }
 });
 
 test("historical reports stay deduplicated without booking the per-site cap", async () => {

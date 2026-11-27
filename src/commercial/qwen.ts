@@ -10,6 +10,8 @@ const MODEL = "qwen4-max";
 export const MODEL_TIMEOUT_MS = 1_800_000;
 const PRICE_IN = 10;
 const PRICE_OUT = 30;
+const THINKING_BUDGET = 30720;
+const MAX_COMPLETION_TOKENS = 45056;
 
 const skillText = readFileSync(path.join(ASSETS, "SKILL_blind_v0.3.md"), "utf8");
 const schemaText = readFileSync(path.join(ASSETS, "analysis_generation_common.schema.json"), "utf8");
@@ -68,8 +70,8 @@ export function buildQwenPayload(cleanText: string): { payload: Record<string, u
         { role: "user", content: user },
       ],
       enable_thinking: true,
-      thinking_budget: 30720,
-      max_completion_tokens: 45056,
+      thinking_budget: THINKING_BUDGET,
+      max_completion_tokens: MAX_COMPLETION_TOKENS,
       enable_search: false,
       stream: true,
       stream_options: { include_usage: true },
@@ -79,6 +81,17 @@ export function buildQwenPayload(cleanText: string): { payload: Record<string, u
       },
     },
   };
+}
+
+export function callCeilingFen(cleanText: string): number {
+  const built = buildQwenPayload(cleanText);
+  const inputTokens = JSON.stringify(built.payload).length + 256;
+  const yuan = (inputTokens * PRICE_IN + (THINKING_BUDGET + MAX_COMPLETION_TOKENS) * PRICE_OUT) / 1_000_000;
+  return Math.ceil(yuan * 100 - 1e-9);
+}
+
+export function minimumCallCeilingFen(): number {
+  return callCeilingFen("");
 }
 
 export type QwenReceipt = {

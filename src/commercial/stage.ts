@@ -4,7 +4,7 @@ import path from "node:path";
 import type { SiteOneJson } from "../report/types.ts";
 import { cleanSiteOne, htmlExclusiveTables, htmlSourceMarkers } from "./clean.ts";
 import { certificateTrust, composeCommercialReport, countResponses, fillUnstatedCounts, readEngineScores, sameSite, sourceCountMismatch } from "./compose.ts";
-import { ModelCallError } from "./qwen.ts";
+import { callCeilingFen, ModelCallError } from "./qwen.ts";
 import { deriveScoreScale } from "./score-scale.ts";
 
 export type Analyzer = (input: { cleanText: string; signal: AbortSignal }) => Promise<{ analysis: unknown; receipt: Record<string, unknown> }>;
@@ -17,6 +17,7 @@ type Receipt = {
   reused: boolean;
   dropped: string[];
   model_receipt: Record<string, unknown> | null;
+  ceiling_fen?: number;
 };
 
 export async function produceCommercial(options: {
@@ -31,6 +32,7 @@ export async function produceCommercial(options: {
   signal: AbortSignal;
   analyze?: Analyzer;
   blocked?: { code: string; message: string };
+  afford?: (ceilingFen: number) => Promise<{ ok: true } | { ok: false; message: string }>;
 }): Promise<{ available: boolean; code: string | null }> {
   const sha = createHash("sha256").update(options.siteoneText).digest("hex");
   const existing = await readJson(path.join(options.dir, "analysis.json"));
@@ -51,18 +53,27 @@ export async function produceCommercial(options: {
     return { available: false, code: "COMMERCIAL_NOT_CONFIGURED" };
   }
   if (options.signal.aborted) throw abortError();
-  await writeReceipt(options.dir, { siteone_sha256: sha, request_sent: true, valid: false, code: "MODEL_PENDING", reused: false, dropped: [], model_receipt: null });
+  const cleanText = cleanSiteOne(options.siteone, options.html);
+  const ceilingFen = callCeilingFen(cleanText);
+  if (options.afford) {
+    const fit = await options.afford(ceilingFen);
+    if (!fit.ok) {
+      await writeError(options.dir, "DAILY_BUDGET_LIMIT", fit.message);
+      return { available: false, code: "DAILY_BUDGET_LIMIT" };
+    }
+  }
+  await writeReceipt(options.dir, { siteone_sha256: sha, request_sent: true, valid: false, code: "MODEL_PENDING", reused: false, dropped: [], model_receipt: null, ceiling_fen: ceilingFen });
   let analysis: unknown;
   let modelReceipt: Record<string, unknown> | null = null;
   try {
-    const result = await options.analyze({ cleanText: cleanSiteOne(options.siteone, options.html), signal: options.signal });
+    const result = await options.analyze({ cleanText, signal: options.signal });
     analysis = result.analysis;
     modelReceipt = result.receipt;
   } catch (error) {
     const code = error instanceof ModelCallError ? error.code : options.signal.aborted ? "CANCELLED" : "MODEL_FAILED";
     const message = error instanceof Error ? error.message : "模型调用失败。";
     if (options.signal.aborted) throw abortError();
-    await writeReceipt(options.dir, { siteone_sha256: sha, request_sent: true, valid: false, code, reused: false, dropped: [], model_receipt: null });
+    await writeReceipt(options.dir, { siteone_sha256: sha, request_sent: true, valid: false, code, reused: false, dropped: [], model_receipt: null, ceiling_fen: ceilingFen });
     await writeError(options.dir, code, message);
     return { available: false, code };
   }
@@ -109,6 +120,7 @@ async function writeReport(
     return { available: false, code: composed.code };
   }
   await writeFile(path.join(options.dir, "commercial-report.json"), JSON.stringify(composed.report));
+  const previous = await readReceipt(options.dir);
   await writeReceipt(options.dir, {
     siteone_sha256: sha,
     request_sent: true,
@@ -117,12 +129,23 @@ async function writeReport(
     reused,
     dropped: composed.dropped,
     model_receipt: modelReceipt,
+    ...(typeof previous?.ceiling_fen === "number" ? { ceiling_fen: previous.ceiling_fen } : {}),
   });
   return { available: true, code: null };
 }
 
 async function fail(dir: string, sha: string, reused: boolean, modelReceipt: Record<string, unknown> | null, code: string, message: string): Promise<void> {
-  await writeReceipt(dir, { siteone_sha256: sha, request_sent: true, valid: false, code, reused, dropped: [], model_receipt: modelReceipt });
+  const previous = await readReceipt(dir);
+  await writeReceipt(dir, {
+    siteone_sha256: sha,
+    request_sent: true,
+    valid: false,
+    code,
+    reused,
+    dropped: [],
+    model_receipt: modelReceipt,
+    ...(typeof previous?.ceiling_fen === "number" ? { ceiling_fen: previous.ceiling_fen } : {}),
+  });
   await writeError(dir, code, message);
 }
 

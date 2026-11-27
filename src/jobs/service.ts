@@ -13,10 +13,11 @@ import {
 } from "../constants.ts";
 import type { CreateJobBody } from "../http/request.ts";
 import { PdfRenderError } from "../commercial/pdf.ts";
-import { MODEL_TIMEOUT_MS } from "../commercial/qwen.ts";
+import { callCeilingFen, minimumCallCeilingFen, MODEL_TIMEOUT_MS } from "../commercial/qwen.ts";
 import {
   type AdmissionIdentity,
   type BudgetCaps,
+  budgetFit,
   DEFAULT_BUDGET,
   canonicalHost,
   decideAdmission,
@@ -119,6 +120,7 @@ type ChargeSnapshot = {
   costCny: number | null;
   connectionFailure: boolean;
   at: string | null;
+  ceilingFen: number | null;
 };
 
 const ACTIVE = new Set<JobState>(["queued", "validating", "running", "summarizing"]);
@@ -223,7 +225,7 @@ export function createJobService(options: {
         if (!host) return error(400, "TARGET_URL_INVALID", "网址无法解析。只接受完整的 http 或 https 网址。");
         if (!admission) return error(400, "ADMISSION_REQUIRED", "付费诊断需要当日的浏览器和网络标识。");
         ledger = await currentLedger();
-        const decision = decideAdmission(ledger, { now: now(), host, browser: admission.browser, ip: admission.ip }, budgets);
+        const decision = decideAdmission(ledger, { now: now(), host, browser: admission.browser, ip: admission.ip }, budgets, minimumCallCeilingFen());
         if (!decision.ok) return error(decision.status, decision.code, decision.message);
       }
       if (await hasActive()) {
@@ -426,6 +428,7 @@ export function createJobService(options: {
           : currentJob?.model_authorized
             ? undefined
             : { code: "MODEL_NOT_AUTHORIZED", message: "这次授权只覆盖公开页面扫描，不能据此调用模型。" };
+      const budgetHost = currentJob?.canonical_host ?? canonicalHost(currentJob?.target_url ?? "") ?? host;
       await produceCommercial({
         dir,
         siteone: parsed,
@@ -438,6 +441,7 @@ export function createJobService(options: {
         signal,
         analyze: blocked ? undefined : options.analyze,
         blocked,
+        afford: blocked || !currentJob?.model_authorized ? undefined : (ceilingFen) => holdModelCeiling(budgetHost, jobRef, ceilingFen),
       });
     } catch (error) {
       if (controller.signal.aborted) {
@@ -676,8 +680,32 @@ export function createJobService(options: {
       requestSent: snap.requestSent,
       connectionFailure: snap.connectionFailure,
       costCny: snap.costCny,
+      ceilingFen: snap.ceilingFen,
     });
     await saveLedger(ledgerFile, synced.ledger);
+  }
+
+  async function holdModelCeiling(host: string, jobRef: string, ceilingFen: number): Promise<{ ok: true } | { ok: false; message: string }> {
+    return lock(async () => {
+      const ledger = await currentLedger();
+      const fit = budgetFit(ledger, { now: now(), host }, budgets, ceilingFen);
+      if (!fit.ok) return { ok: false, message: fit.message };
+      const synced = syncAdmission(ledger, {
+        now: now(),
+        host,
+        jobRef,
+        at: now().toISOString(),
+        active: true,
+        success: false,
+        settled: false,
+        requestSent: true,
+        connectionFailure: false,
+        costCny: null,
+        ceilingFen,
+      });
+      await saveLedger(ledgerFile, synced.ledger);
+      return { ok: true };
+    });
   }
 
   async function importHistorical(snaps: Map<string, ChargeSnapshot>): Promise<void> {
@@ -701,6 +729,7 @@ export function createJobService(options: {
         requestSent: snap.requestSent,
         connectionFailure: snap.connectionFailure,
         costCny: snap.costCny,
+        ceilingFen: snap.ceilingFen,
       }).ledger;
     }
     await saveLedger(ledgerFile, ledger);
@@ -708,17 +737,29 @@ export function createJobService(options: {
 
   async function readChargeSnapshot(jobRef: string): Promise<ChargeSnapshot> {
     const dir = jobDir(jobRef);
-    const receipt = await readFile(path.join(dir, "commercial-receipt.json"), "utf8").then((raw) => JSON.parse(raw) as { request_sent?: unknown; code?: unknown; model_receipt?: { estimated_cost_cny?: unknown } }).catch(() => null);
+    const receipt = await readFile(path.join(dir, "commercial-receipt.json"), "utf8").then((raw) => JSON.parse(raw) as { request_sent?: unknown; code?: unknown; ceiling_fen?: unknown; model_receipt?: { estimated_cost_cny?: unknown } }).catch(() => null);
     const error = await readFile(path.join(dir, "commercial-error.json"), "utf8").then((raw) => JSON.parse(raw) as { code?: unknown; message?: unknown }).catch(() => null);
     const report = await readFile(path.join(dir, "commercial-report.json"), "utf8").then((raw) => JSON.parse(raw) as { generated_at?: unknown }).catch(() => null);
     const message = typeof error?.message === "string" ? error.message : "";
     const code = typeof receipt?.code === "string" ? receipt.code : typeof error?.code === "string" ? error.code : "";
     const cost = receipt?.model_receipt?.estimated_cost_cny;
+    const requestSent = receipt?.request_sent === true;
+    const connectionFailure = code === "MODEL_FAILED" && (message === "fetch failed" || message.startsWith("模型连接中断"));
+    let ceilingFen = typeof receipt?.ceiling_fen === "number" ? receipt.ceiling_fen : null;
+    if (ceilingFen === null && requestSent && typeof cost !== "number" && !connectionFailure) {
+      const siteone = await readFile(path.join(dir, "siteone.json"), "utf8").then((raw) => JSON.parse(raw) as SiteOneJson).catch(() => null);
+      if (siteone) {
+        const html = await readFile(path.join(dir, "siteone.html"), "utf8").catch(() => null);
+        const { cleanSiteOne } = await import("../commercial/clean.ts");
+        ceilingFen = callCeilingFen(cleanSiteOne(siteone, html));
+      }
+    }
     return {
-      requestSent: receipt?.request_sent === true,
+      requestSent,
       costCny: typeof cost === "number" ? cost : null,
-      connectionFailure: code === "MODEL_FAILED" && (message === "fetch failed" || message.startsWith("模型连接中断")),
+      connectionFailure,
       at: typeof report?.generated_at === "string" ? report.generated_at : null,
+      ceilingFen,
     };
   }
 

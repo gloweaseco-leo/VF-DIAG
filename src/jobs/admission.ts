@@ -32,6 +32,7 @@ export type ChargeRecord = {
   priced: boolean;
   unresolved: boolean;
   blocks_model: boolean;
+  ceiling_fen: number;
 };
 
 export type BudgetCaps = {
@@ -120,6 +121,7 @@ export function decideAdmission(
   ledger: Ledger,
   input: { now: Date; host: string; browser: string; ip: string },
   caps: BudgetCaps = DEFAULT_BUDGET,
+  nextFen = 0,
 ): { ok: true } | AdmissionRefusal {
   const site = ledger.sites[input.host];
   if (site?.active_job) {
@@ -136,16 +138,22 @@ export function decideAdmission(
   if ((day.ips[input.ip] ?? 0) >= IP_DAILY_TASKS) {
     return { ok: false, status: 429, code: "IP_DAILY_LIMIT", message: "当前网络今天的新诊断任务已达上限。" };
   }
-  const exposure = budgetExposure(ledger, input.now, input.host, caps);
-  if (exposure.site >= caps.siteFen) {
-    return { ok: false, status: 429, code: "DAILY_BUDGET_LIMIT", message: "这个网站的诊断费用已达单站上限，暂停新的付费诊断。" };
-  }
-  if (exposure.day >= caps.dailyFen) {
-    return { ok: false, status: 429, code: "DAILY_BUDGET_LIMIT", message: "今日模型费用已达上限，暂停接受新的付费诊断。" };
-  }
-  if (exposure.month >= caps.monthlyFen) {
-    return { ok: false, status: 429, code: "DAILY_BUDGET_LIMIT", message: "本月模型费用已达上限，暂停接受新的付费诊断。" };
-  }
+  return budgetFit(ledger, { now: input.now, host: input.host }, caps, nextFen);
+}
+
+export function budgetFit(
+  ledger: Ledger,
+  input: { now: Date; host: string },
+  caps: BudgetCaps,
+  nextFen: number,
+): { ok: true } | AdmissionRefusal {
+  const exposure = budgetExposure(ledger, input.now, input.host);
+  const site = fitCap(exposure.site, caps.siteFen, nextFen, "这个网站的诊断费用已达单站上限，暂停新的付费诊断。", "下一次模型调用的费用上限会超过单站上限，已停止新的付费诊断。");
+  if (site) return site;
+  const day = fitCap(exposure.day, caps.dailyFen, nextFen, "今日模型费用已达上限，暂停接受新的付费诊断。", "下一次模型调用的费用上限会超过今日预算，已停止新的付费诊断。");
+  if (day) return day;
+  const month = fitCap(exposure.month, caps.monthlyFen, nextFen, "本月模型费用已达上限，暂停接受新的付费诊断。", "下一次模型调用的费用上限会超过本月预算，已停止新的付费诊断。");
+  if (month) return month;
   return { ok: true };
 }
 
@@ -175,6 +183,7 @@ export function syncAdmission(
     requestSent: boolean;
     connectionFailure: boolean;
     costCny: number | null;
+    ceilingFen?: number | null;
   },
 ): { ledger: Ledger } {
   const next = structuredClone(ledger);
@@ -211,7 +220,7 @@ export async function loadLedger(file: string): Promise<Ledger> {
     return {
       sites: parsed.sites && typeof parsed.sites === "object" ? parsed.sites : {},
       days,
-      charges: parsed.charges && typeof parsed.charges === "object" ? parsed.charges : {},
+      charges: normalizeCharges(parsed.charges),
     };
   } catch {
     return emptyLedger();
@@ -287,24 +296,26 @@ function classifyCharge(existing: ChargeRecord | undefined, input: {
   requestSent: boolean;
   connectionFailure: boolean;
   costCny: number | null;
+  ceilingFen?: number | null;
   host: string;
 }): ChargeRecord | null {
   if (!input.requestSent && !existing) return null;
   const at = existing?.at ?? input.at;
   if (!input.requestSent) return existing ?? null;
+  const ceiling = input.connectionFailure ? 0 : input.ceilingFen ?? existing?.ceiling_fen ?? 0;
   if (input.connectionFailure) {
-    return { host: input.host, at, fen: 0, priced: true, unresolved: false, blocks_model: false };
+    return { host: input.host, at, fen: 0, priced: true, unresolved: false, blocks_model: false, ceiling_fen: 0 };
   }
   if (typeof input.costCny === "number" && Number.isFinite(input.costCny) && input.costCny >= 0) {
-    return { host: input.host, at, fen: Math.round(input.costCny * 100), priced: true, unresolved: false, blocks_model: true };
+    return { host: input.host, at, fen: Math.round(input.costCny * 100), priced: true, unresolved: false, blocks_model: true, ceiling_fen: ceiling };
   }
   if (!input.settled) {
-    return { host: input.host, at, fen: 0, priced: false, unresolved: false, blocks_model: false };
+    return { host: input.host, at, fen: 0, priced: false, unresolved: false, blocks_model: false, ceiling_fen: ceiling };
   }
-  return { host: input.host, at, fen: 0, priced: false, unresolved: true, blocks_model: true };
+  return { host: input.host, at, fen: 0, priced: false, unresolved: true, blocks_model: true, ceiling_fen: ceiling };
 }
 
-function budgetExposure(ledger: Ledger, now: Date, host: string, caps: BudgetCaps): { site: number; day: number; month: number } {
+function budgetExposure(ledger: Ledger, now: Date, host: string): { site: number; day: number; month: number } {
   let site = 0;
   let day = 0;
   let month = 0;
@@ -313,13 +324,29 @@ function budgetExposure(ledger: Ledger, now: Date, host: string, caps: BudgetCap
   for (const charge of Object.values(ledger.charges ?? {})) {
     const at = new Date(charge.at);
     if (Number.isNaN(at.getTime())) continue;
-    const amount = charge.priced ? charge.fen : charge.unresolved ? caps.siteFen : 0;
-    if (charge.host === host && charge.priced && now.getTime() - at.getTime() < SITE_SUCCESS_WINDOW_MS) site += charge.fen;
+    const amount = charge.priced ? charge.fen : Math.max(0, charge.ceiling_fen ?? 0);
+    if (charge.host === host && now.getTime() - at.getTime() < SITE_SUCCESS_WINDOW_MS) site += amount;
     const chargeDay = shanghaiDay(at);
     if (chargeDay === dayKey) day += amount;
     if (chargeDay.slice(0, 7) === monthKey) month += amount;
   }
   return { site, day, month };
+}
+
+function fitCap(spent: number, cap: number, nextFen: number, reached: string, ahead: string): AdmissionRefusal | null {
+  if (spent >= cap) return { ok: false, status: 429, code: "DAILY_BUDGET_LIMIT", message: reached };
+  if (nextFen > 0 && spent + nextFen > cap) return { ok: false, status: 429, code: "DAILY_BUDGET_LIMIT", message: ahead };
+  return null;
+}
+
+function normalizeCharges(value: unknown): Record<string, ChargeRecord> {
+  if (!value || typeof value !== "object") return {};
+  const charges: Record<string, ChargeRecord> = {};
+  for (const [jobRef, raw] of Object.entries(value as Record<string, ChargeRecord>)) {
+    if (!raw || typeof raw !== "object") continue;
+    charges[jobRef] = { ...raw, ceiling_fen: typeof raw.ceiling_fen === "number" ? raw.ceiling_fen : 0 };
+  }
+  return charges;
 }
 
 function yuanToFen(raw: string | undefined, fallbackYuan: number): number {
