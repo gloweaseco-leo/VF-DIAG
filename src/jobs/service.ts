@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash, randomBytes } from "node:crypto";
 import { copyFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -142,23 +143,11 @@ export function createJobService(options: {
   const ledgerFile = path.join(options.dataDir, "admission.json");
   const aborts = new Map<string, AbortController>();
   let chain: Promise<unknown> = Promise.resolve();
-  let lockDepth = 0;
+  const lockContext = new AsyncLocalStorage<true>();
 
   function lock<T>(fn: () => Promise<T>): Promise<T> {
-    if (lockDepth > 0) {
-      lockDepth += 1;
-      return fn().finally(() => {
-        lockDepth -= 1;
-      });
-    }
-    const run = chain.then(async () => {
-      lockDepth = 1;
-      try {
-        return await fn();
-      } finally {
-        lockDepth = 0;
-      }
-    });
+    if (lockContext.getStore()) return fn();
+    const run = chain.then(() => lockContext.run(true, fn));
     chain = run.then(
       () => undefined,
       () => undefined,
@@ -274,15 +263,17 @@ export function createJobService(options: {
       await writeJob(job);
       const controller = new AbortController();
       aborts.set(job.job_ref, controller);
-      queueMicrotask(() => {
-        void execute(job.job_ref, controller).catch((error: unknown) => {
-          const message = error instanceof Error ? error.message : "任务执行失败。";
-          return update(job.job_ref, {
-            state: "failed",
-            reason_code: "ENGINE_FAILED",
-            reason: message,
-            report_available: false,
-          }).catch(() => undefined);
+      lockContext.exit(() => {
+        queueMicrotask(() => {
+          void execute(job.job_ref, controller).catch((error: unknown) => {
+            const message = error instanceof Error ? error.message : "任务执行失败。";
+            return update(job.job_ref, {
+              state: "failed",
+              reason_code: "ENGINE_FAILED",
+              reason: message,
+              report_available: false,
+            }).catch(() => undefined);
+          });
         });
       });
       return { status: 202, body: toStatus(job) };
