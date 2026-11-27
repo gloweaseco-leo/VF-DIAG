@@ -16,6 +16,8 @@ import { PdfRenderError } from "../commercial/pdf.ts";
 import { MODEL_TIMEOUT_MS } from "../commercial/qwen.ts";
 import {
   type AdmissionIdentity,
+  type BudgetCaps,
+  DEFAULT_BUDGET,
   canonicalHost,
   decideAdmission,
   loadLedger,
@@ -112,6 +114,13 @@ type Runner = (options: {
   signal: AbortSignal;
 }) => Promise<CrawlResult>;
 
+type ChargeSnapshot = {
+  requestSent: boolean;
+  costCny: number | null;
+  connectionFailure: boolean;
+  at: string | null;
+};
+
 const ACTIVE = new Set<JobState>(["queued", "validating", "running", "summarizing"]);
 const TERMINAL = new Set<JobState>(["complete", "partial", "failed", "cancelled", "expired"]);
 
@@ -123,8 +132,10 @@ export function createJobService(options: {
   now?: () => Date;
   analyze?: Analyzer;
   renderPdf?: PdfRenderer;
+  budgets?: BudgetCaps;
 }) {
   const now = options.now ?? (() => new Date());
+  const budgets = options.budgets ?? DEFAULT_BUDGET;
   const jobsDir = path.join(options.dataDir, "jobs");
   const ledgerFile = path.join(options.dataDir, "admission.json");
   const aborts = new Map<string, AbortController>();
@@ -157,6 +168,8 @@ export function createJobService(options: {
     await mkdir(jobsDir, { recursive: true });
     const { readdir } = await import("node:fs/promises");
     const names = await readdir(jobsDir);
+    const snaps = new Map<string, ChargeSnapshot>();
+    for (const name of names) snaps.set(name, await readChargeSnapshot(name));
     for (const name of names) {
       const job = await readJob(name);
       if (!job) continue;
@@ -190,6 +203,7 @@ export function createJobService(options: {
         });
       }
     }
+    await lock(() => importHistorical(snaps));
   }
 
   async function create(body: CreateJobBody, admission?: AdmissionIdentity | null): Promise<{ status: number; body: unknown }> {
@@ -209,7 +223,7 @@ export function createJobService(options: {
         if (!host) return error(400, "TARGET_URL_INVALID", "网址无法解析。只接受完整的 http 或 https 网址。");
         if (!admission) return error(400, "ADMISSION_REQUIRED", "付费诊断需要当日的浏览器和网络标识。");
         ledger = await currentLedger();
-        const decision = decideAdmission(ledger, { now: now(), host, browser: admission.browser, ip: admission.ip });
+        const decision = decideAdmission(ledger, { now: now(), host, browser: admission.browser, ip: admission.ip }, budgets);
         if (!decision.ok) return error(decision.status, decision.code, decision.message);
       }
       if (await hasActive()) {
@@ -646,20 +660,66 @@ export function createJobService(options: {
   }
 
   async function syncJob(job: JobRecord): Promise<void> {
-    if (!job.canonical_host) return;
-    const receipt = await readFile(path.join(jobDir(job.job_ref), "commercial-receipt.json"), "utf8").then((raw) => JSON.parse(raw) as { request_sent?: unknown; model_receipt?: { estimated_cost_cny?: unknown } }).catch(() => null);
-    const cost = receipt?.model_receipt?.estimated_cost_cny;
+    const host = job.canonical_host ?? canonicalHost(job.target_url);
+    if (!host || !job.model_authorized || isSyntheticUrl(job.target_url)) return;
+    const snap = await readChargeSnapshot(job.job_ref);
+    const expired = Date.parse(job.expires_at) <= now().getTime();
+    const settled = expired || !ACTIVE.has(job.state);
     const synced = syncAdmission(await currentLedger(), {
       now: now(),
-      host: job.canonical_host,
+      host,
       jobRef: job.job_ref,
-      active: ACTIVE.has(job.state) && Date.parse(job.expires_at) > now().getTime(),
-      success: job.customer_report_available === true,
-      requestSent: receipt?.request_sent === true,
-      costCny: typeof cost === "number" ? cost : null,
+      at: snap.at ?? job.updated_at,
+      active: !settled,
+      success: job.customer_report_available === true && !expired,
+      settled,
+      requestSent: snap.requestSent,
+      connectionFailure: snap.connectionFailure,
+      costCny: snap.costCny,
     });
     await saveLedger(ledgerFile, synced.ledger);
-    if (synced.warn) console.log(synced.warn);
+  }
+
+  async function importHistorical(snaps: Map<string, ChargeSnapshot>): Promise<void> {
+    let ledger = await currentLedger();
+    for (const [jobRef, snap] of snaps) {
+      const job = await readJob(jobRef);
+      if (!job || job.synthetic || isSyntheticUrl(job.target_url)) continue;
+      if (!job.model_authorized && !snap.requestSent && job.customer_report_available !== true) continue;
+      const host = job.canonical_host ?? canonicalHost(job.target_url);
+      if (!host) continue;
+      const expired = Date.parse(job.expires_at) <= now().getTime();
+      const settled = expired || !ACTIVE.has(job.state);
+      ledger = syncAdmission(ledger, {
+        now: now(),
+        host,
+        jobRef,
+        at: snap.at ?? job.updated_at,
+        active: !settled,
+        success: job.customer_report_available === true && !expired,
+        settled,
+        requestSent: snap.requestSent,
+        connectionFailure: snap.connectionFailure,
+        costCny: snap.costCny,
+      }).ledger;
+    }
+    await saveLedger(ledgerFile, ledger);
+  }
+
+  async function readChargeSnapshot(jobRef: string): Promise<ChargeSnapshot> {
+    const dir = jobDir(jobRef);
+    const receipt = await readFile(path.join(dir, "commercial-receipt.json"), "utf8").then((raw) => JSON.parse(raw) as { request_sent?: unknown; code?: unknown; model_receipt?: { estimated_cost_cny?: unknown } }).catch(() => null);
+    const error = await readFile(path.join(dir, "commercial-error.json"), "utf8").then((raw) => JSON.parse(raw) as { code?: unknown; message?: unknown }).catch(() => null);
+    const report = await readFile(path.join(dir, "commercial-report.json"), "utf8").then((raw) => JSON.parse(raw) as { generated_at?: unknown }).catch(() => null);
+    const message = typeof error?.message === "string" ? error.message : "";
+    const code = typeof receipt?.code === "string" ? receipt.code : typeof error?.code === "string" ? error.code : "";
+    const cost = receipt?.model_receipt?.estimated_cost_cny;
+    return {
+      requestSent: receipt?.request_sent === true,
+      costCny: typeof cost === "number" ? cost : null,
+      connectionFailure: code === "MODEL_FAILED" && (message === "fetch failed" || message.startsWith("模型连接中断")),
+      at: typeof report?.generated_at === "string" ? report.generated_at : null,
+    };
   }
 
   async function hasActive(): Promise<boolean> {
@@ -691,7 +751,7 @@ export function createJobService(options: {
     if (!current) throw new Error(`missing job ${jobRef}`);
     if (current.state === "cancelled" && patch.state !== "cancelled" && patch.state !== "expired") return current;
     const next = { ...current, ...patch, updated_at: now().toISOString() };
-    if (next.model_authorized && next.canonical_host && !isSyntheticUrl(next.target_url)) await syncJob(next);
+    if (next.model_authorized && !isSyntheticUrl(next.target_url)) await syncJob(next);
     await writeJob(next);
     return next;
   }

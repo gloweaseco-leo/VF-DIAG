@@ -3,10 +3,11 @@ import path from "node:path";
 import { randomBytes } from "node:crypto";
 import {
   BROWSER_DAILY_SITES,
-  DAILY_MODEL_BUDGET_HARD_FEN,
-  DAILY_MODEL_BUDGET_SOFT_FEN,
+  DAILY_MODEL_BUDGET_FEN,
   IP_DAILY_TASKS,
+  MONTHLY_MODEL_BUDGET_FEN,
   REPORT_TIMEZONE,
+  SITE_MODEL_BUDGET_FEN,
   SITE_SUCCESS_WINDOW_MS,
 } from "../constants.ts";
 
@@ -22,14 +23,33 @@ export type SiteRecord = {
 export type DayRecord = {
   browsers: Record<string, string>;
   ips: Record<string, number>;
-  spend_fen: number;
-  warned: boolean;
-  charged_jobs: string[];
+};
+
+export type ChargeRecord = {
+  host: string;
+  at: string;
+  fen: number;
+  priced: boolean;
+  unresolved: boolean;
+  blocks_model: boolean;
+};
+
+export type BudgetCaps = {
+  siteFen: number;
+  dailyFen: number;
+  monthlyFen: number;
 };
 
 export type Ledger = {
   sites: Record<string, SiteRecord>;
   days: Record<string, DayRecord>;
+  charges: Record<string, ChargeRecord>;
+};
+
+export const DEFAULT_BUDGET: BudgetCaps = {
+  siteFen: SITE_MODEL_BUDGET_FEN,
+  dailyFen: DAILY_MODEL_BUDGET_FEN,
+  monthlyFen: MONTHLY_MODEL_BUDGET_FEN,
 };
 
 export type AdmissionRefusal = { ok: false; status: number; code: string; message: string };
@@ -85,12 +105,21 @@ export function readAdmissionHeaders(
 }
 
 export function emptyLedger(): Ledger {
-  return { sites: {}, days: {} };
+  return { sites: {}, days: {}, charges: {} };
+}
+
+export function readBudgetCaps(env: Record<string, string | undefined>): BudgetCaps {
+  return {
+    siteFen: yuanToFen(env.VFDIAG_SITE_MODEL_BUDGET_CNY, 6),
+    dailyFen: yuanToFen(env.VFDIAG_DAILY_MODEL_BUDGET_CNY, 30),
+    monthlyFen: yuanToFen(env.VFDIAG_MONTHLY_MODEL_BUDGET_CNY, 500),
+  };
 }
 
 export function decideAdmission(
   ledger: Ledger,
   input: { now: Date; host: string; browser: string; ip: string },
+  caps: BudgetCaps = DEFAULT_BUDGET,
 ): { ok: true } | AdmissionRefusal {
   const site = ledger.sites[input.host];
   if (site?.active_job) {
@@ -107,8 +136,15 @@ export function decideAdmission(
   if ((day.ips[input.ip] ?? 0) >= IP_DAILY_TASKS) {
     return { ok: false, status: 429, code: "IP_DAILY_LIMIT", message: "当前网络今天的新诊断任务已达上限。" };
   }
-  if (day.spend_fen >= DAILY_MODEL_BUDGET_HARD_FEN) {
+  const exposure = budgetExposure(ledger, input.now, input.host, caps);
+  if (exposure.site >= caps.siteFen) {
+    return { ok: false, status: 429, code: "DAILY_BUDGET_LIMIT", message: "这个网站的诊断费用已达单站上限，暂停新的付费诊断。" };
+  }
+  if (exposure.day >= caps.dailyFen) {
     return { ok: false, status: 429, code: "DAILY_BUDGET_LIMIT", message: "今日模型费用已达上限，暂停接受新的付费诊断。" };
+  }
+  if (exposure.month >= caps.monthlyFen) {
+    return { ok: false, status: 429, code: "DAILY_BUDGET_LIMIT", message: "本月模型费用已达上限，暂停接受新的付费诊断。" };
   }
   return { ok: true };
 }
@@ -132,43 +168,50 @@ export function syncAdmission(
     now: Date;
     host: string;
     jobRef: string;
+    at: string;
     active: boolean;
     success: boolean;
+    settled: boolean;
     requestSent: boolean;
+    connectionFailure: boolean;
     costCny: number | null;
   },
-): { ledger: Ledger; warn: string | null } {
+): { ledger: Ledger } {
   const next = structuredClone(ledger);
+  if (!next.charges) next.charges = {};
   const site = siteRecord(next, input.host);
   if (input.active) site.active_job = input.jobRef;
   else if (site.active_job === input.jobRef) site.active_job = null;
-  if (input.success && !site.success_at) site.success_at = input.now.toISOString();
-  if (input.requestSent && !site.model_job) {
-    site.model_job = input.jobRef;
-    site.model_at = input.now.toISOString();
+  if (input.success) {
+    const at = input.at;
+    if (!site.success_at || Date.parse(at) > Date.parse(site.success_at)) site.success_at = at;
   }
-  let warn: string | null = null;
-  if (typeof input.costCny === "number" && Number.isFinite(input.costCny) && input.costCny > 0) {
-    const key = shanghaiDay(input.now);
-    const day = dayRecord(next, key);
-    if (!day.charged_jobs.includes(input.jobRef)) {
-      day.charged_jobs.push(input.jobRef);
-      day.spend_fen += Math.round(input.costCny * 100);
-      if (day.spend_fen >= DAILY_MODEL_BUDGET_SOFT_FEN && !day.warned) {
-        day.warned = true;
-        warn = `budget soft_limit day=${key} spend_fen=${day.spend_fen}`;
-      }
+  const charge = classifyCharge(next.charges[input.jobRef], input);
+  if (charge) {
+    next.charges[input.jobRef] = charge;
+    if (charge.blocks_model && (!site.model_at || Date.parse(charge.at) >= Date.parse(site.model_at))) {
+      site.model_job = input.jobRef;
+      site.model_at = charge.at;
     }
   }
-  return { ledger: prune(next, input.now), warn };
+  return { ledger: prune(next, input.now) };
 }
 
 export async function loadLedger(file: string): Promise<Ledger> {
   try {
-    const parsed = JSON.parse(await readFile(file, "utf8")) as Partial<Ledger>;
+    const parsed = JSON.parse(await readFile(file, "utf8")) as Partial<Ledger> & { days?: Record<string, DayRecord & { spend_fen?: unknown }> };
+    const days: Record<string, DayRecord> = {};
+    for (const [key, day] of Object.entries(parsed.days ?? {})) {
+      if (!day || typeof day !== "object") continue;
+      days[key] = {
+        browsers: day.browsers && typeof day.browsers === "object" ? day.browsers : {},
+        ips: day.ips && typeof day.ips === "object" ? day.ips : {},
+      };
+    }
     return {
       sites: parsed.sites && typeof parsed.sites === "object" ? parsed.sites : {},
-      days: parsed.days && typeof parsed.days === "object" ? parsed.days : {},
+      days,
+      charges: parsed.charges && typeof parsed.charges === "object" ? parsed.charges : {},
     };
   } catch {
     return emptyLedger();
@@ -213,15 +256,22 @@ function siteRecord(ledger: Ledger, host: string): SiteRecord {
 }
 
 function dayRecord(ledger: Ledger, day: string): DayRecord {
-  const current = ledger.days[day] ?? { browsers: {}, ips: {}, spend_fen: 0, warned: false, charged_jobs: [] };
-  ledger.days[day] = current;
-  return current;
+  const current = ledger.days[day] ?? { browsers: {}, ips: {} };
+  ledger.days[day] = { browsers: current.browsers ?? {}, ips: current.ips ?? {} };
+  return ledger.days[day];
 }
 
 function prune(ledger: Ledger, now: Date): Ledger {
   const today = shanghaiDay(now);
+  const month = today.slice(0, 7);
   for (const day of Object.keys(ledger.days)) {
     if (day < shiftDay(today, -2)) delete ledger.days[day];
+  }
+  for (const [jobRef, charge] of Object.entries(ledger.charges ?? {})) {
+    const at = new Date(charge.at);
+    const chargeDay = shanghaiDay(at);
+    const inWindow = now.getTime() - at.getTime() < SITE_SUCCESS_WINDOW_MS;
+    if (!inWindow && chargeDay.slice(0, 7) !== month) delete ledger.charges[jobRef];
   }
   for (const [host, site] of Object.entries(ledger.sites)) {
     const successFresh = fresh(site.success_at, now);
@@ -229,6 +279,54 @@ function prune(ledger: Ledger, now: Date): Ledger {
     if (!site.active_job && !successFresh && !modelFresh) delete ledger.sites[host];
   }
   return ledger;
+}
+
+function classifyCharge(existing: ChargeRecord | undefined, input: {
+  at: string;
+  settled: boolean;
+  requestSent: boolean;
+  connectionFailure: boolean;
+  costCny: number | null;
+  host: string;
+}): ChargeRecord | null {
+  if (!input.requestSent && !existing) return null;
+  const at = existing?.at ?? input.at;
+  if (!input.requestSent) return existing ?? null;
+  if (input.connectionFailure) {
+    return { host: input.host, at, fen: 0, priced: true, unresolved: false, blocks_model: false };
+  }
+  if (typeof input.costCny === "number" && Number.isFinite(input.costCny) && input.costCny >= 0) {
+    return { host: input.host, at, fen: Math.round(input.costCny * 100), priced: true, unresolved: false, blocks_model: true };
+  }
+  if (!input.settled) {
+    return { host: input.host, at, fen: 0, priced: false, unresolved: false, blocks_model: false };
+  }
+  return { host: input.host, at, fen: 0, priced: false, unresolved: true, blocks_model: true };
+}
+
+function budgetExposure(ledger: Ledger, now: Date, host: string, caps: BudgetCaps): { site: number; day: number; month: number } {
+  let site = 0;
+  let day = 0;
+  let month = 0;
+  const dayKey = shanghaiDay(now);
+  const monthKey = dayKey.slice(0, 7);
+  for (const charge of Object.values(ledger.charges ?? {})) {
+    const at = new Date(charge.at);
+    if (Number.isNaN(at.getTime())) continue;
+    const amount = charge.priced ? charge.fen : charge.unresolved ? caps.siteFen : 0;
+    if (charge.host === host && charge.priced && now.getTime() - at.getTime() < SITE_SUCCESS_WINDOW_MS) site += charge.fen;
+    const chargeDay = shanghaiDay(at);
+    if (chargeDay === dayKey) day += amount;
+    if (chargeDay.slice(0, 7) === monthKey) month += amount;
+  }
+  return { site, day, month };
+}
+
+function yuanToFen(raw: string | undefined, fallbackYuan: number): number {
+  if (raw === undefined || raw.trim() === "") return Math.round(fallbackYuan * 100);
+  const yuan = Number(raw);
+  if (!Number.isFinite(yuan) || yuan < 0) return Math.round(fallbackYuan * 100);
+  return Math.round(yuan * 100);
 }
 
 function fresh(value: string | null, now: Date): boolean {

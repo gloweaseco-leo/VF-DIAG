@@ -4,6 +4,7 @@ import { assertServiceToken } from "./http/request.ts";
 import { createHttpServer } from "./http/server.ts";
 import { fetchPrintPdf } from "./commercial/pdf.ts";
 import { createProductionAnalyzer } from "./commercial/qwen.ts";
+import { readBudgetCaps } from "./jobs/admission.ts";
 import { createJobService } from "./jobs/service.ts";
 import { runSiteOne } from "./siteone/run.ts";
 
@@ -26,9 +27,12 @@ const syntheticHosts = new Set(
 const qwenKey = process.env.VFDIAG_QWEN_API_KEY;
 const printOrigin = process.env.VFDIAG_PRINT_ORIGIN;
 const renderToken = process.env.VFDIAG_RENDER_TOKEN;
+const budgets = readBudgetCaps(process.env);
+console.log(`budget caps site_fen=${budgets.siteFen} daily_fen=${budgets.dailyFen} monthly_fen=${budgets.monthlyFen}`);
 const jobs = createJobService({
   dataDir,
   syntheticHosts,
+  budgets,
   lookup: async (hostname) => {
     const records = await lookup(hostname, { all: true, verbatim: true });
     return records.map((record) => record.address);

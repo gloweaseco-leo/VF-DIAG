@@ -6,7 +6,7 @@ import test from "node:test";
 import { MODEL_AUTHORIZATION_VERSION } from "../src/constants.ts";
 import { authorizationTextHash, modelAuthorizationTextHash } from "../src/http/request.ts";
 import { createHttpServer } from "../src/http/server.ts";
-import { canonicalHost, decideAdmission, emptyLedger, readAdmissionHeaders, reserveAdmission, shanghaiDay } from "../src/jobs/admission.ts";
+import { canonicalHost, decideAdmission, emptyLedger, readAdmissionHeaders, readBudgetCaps, reserveAdmission, shanghaiDay, syncAdmission } from "../src/jobs/admission.ts";
 import { createJobService } from "../src/jobs/service.ts";
 import type { CrawlResult } from "../src/siteone/run.ts";
 
@@ -49,10 +49,16 @@ test("admission decisions refuse without revealing a job", () => {
   assert.equal(ip.ok, false);
   if (!ip.ok) assert.equal(ip.code, "IP_DAILY_LIMIT");
   ledger.days[shanghaiDay(now)].ips[network] = 1;
-  ledger.days[shanghaiDay(now)].spend_fen = 600;
+  ledger.charges.spent = { host: "factory.example", at: now.toISOString(), fen: 100, priced: true, unresolved: false, blocks_model: true };
+  const underCap = decideAdmission(ledger, { now, host: "other.example", browser: browserB, ip: "d".repeat(64) });
+  assert.equal(underCap.ok, true);
+  ledger.charges.spent.fen = 3_000;
   const budget = decideAdmission(ledger, { now, host: "other.example", browser: browserB, ip: "d".repeat(64) });
   assert.equal(budget.ok, false);
-  if (!budget.ok) assert.equal(budget.code, "DAILY_BUDGET_LIMIT");
+  if (!budget.ok) {
+    assert.equal(budget.code, "DAILY_BUDGET_LIMIT");
+    assert.equal(budget.message.includes("今日"), true);
+  }
 });
 
 test("paid creates enforce admission and keep existing reports readable", async () => {
@@ -62,6 +68,7 @@ test("paid creates enforce admission and keep existing reports readable", async 
     dataDir: dir,
     syntheticHosts: new Set(),
     now: () => clock,
+    budgets: { siteFen: 600, dailyFen: 600, monthlyFen: 50_000 },
     lookup: async () => ["93.184.216.34"],
     run: writeCrawl,
     analyze: async () => {
@@ -144,6 +151,107 @@ test("a failed paid diagnosis can be retried without a second model call", async
     assert.equal(calls, 1);
     const commercial = await jobs.commercialReport((second.body as { job_ref: string }).job_ref);
     assert.equal(code(commercial.body), "MODEL_INTERRUPTED");
+  } finally {
+    await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 40 });
+  }
+});
+
+test("budget caps bill the actual charge once and stay inside their own period", () => {
+  const caps = { siteFen: 600, dailyFen: 3_000, monthlyFen: 50_000 };
+  const nov26 = new Date("2026-11-26T02:00:00.000Z");
+  const nov27 = new Date("2026-11-27T02:00:00.000Z");
+  const dec1 = new Date("2026-12-01T02:00:00.000Z");
+  let ledger = emptyLedger();
+  ledger = syncAdmission(ledger, { now: nov26, host: "factory.example", jobRef: "priced", at: nov26.toISOString(), active: false, success: false, settled: true, requestSent: true, connectionFailure: false, costCny: 1 }).ledger;
+  ledger = syncAdmission(ledger, { now: nov26, host: "factory.example", jobRef: "priced", at: "2026-12-01T00:00:00.000Z", active: false, success: false, settled: true, requestSent: true, connectionFailure: false, costCny: 1 }).ledger;
+  assert.equal(ledger.charges.priced.fen, 100);
+  assert.equal(ledger.charges.priced.at, nov26.toISOString());
+  assert.equal(decideAdmission(ledger, { now: nov26, host: "other.example", browser: browserB, ip: network }, caps).ok, true);
+  const daily = decideAdmission(ledger, { now: nov26, host: "other.example", browser: browserB, ip: network }, { ...caps, dailyFen: 100 });
+  assert.equal(daily.ok, false);
+  if (!daily.ok) assert.equal(daily.message.includes("今日"), true);
+  const month = decideAdmission(ledger, { now: nov27, host: "other.example", browser: browserB, ip: network }, { ...caps, monthlyFen: 100 });
+  assert.equal(month.ok, false);
+  if (!month.ok) assert.equal(month.message.includes("本月"), true);
+  assert.equal(decideAdmission(ledger, { now: dec1, host: "other.example", browser: browserB, ip: network }, { ...caps, monthlyFen: 100 }).ok, true);
+  const site = decideAdmission(ledger, { now: nov26, host: "factory.example", browser: browserB, ip: "d".repeat(64) }, { ...caps, siteFen: 100 });
+  assert.equal(site.ok, false);
+  if (!site.ok) assert.equal(site.message.includes("单站"), true);
+
+  ledger = syncAdmission(ledger, { now: nov26, host: "open.example", jobRef: "unknown", at: nov26.toISOString(), active: true, success: false, settled: false, requestSent: true, connectionFailure: false, costCny: null }).ledger;
+  assert.equal(decideAdmission(ledger, { now: nov26, host: "third.example", browser: browserB, ip: "e".repeat(64) }, { ...caps, dailyFen: 200 }).ok, true);
+  ledger = syncAdmission(ledger, { now: nov27, host: "open.example", jobRef: "unknown", at: "2026-12-02T00:00:00.000Z", active: false, success: false, settled: true, requestSent: true, connectionFailure: false, costCny: null }).ledger;
+  assert.equal(ledger.charges.unknown.unresolved, true);
+  assert.equal(ledger.charges.unknown.fen, 0);
+  assert.equal(ledger.charges.unknown.at, nov26.toISOString());
+  const held = decideAdmission(ledger, { now: nov26, host: "third.example", browser: browserB, ip: "e".repeat(64) }, { ...caps, dailyFen: 600 });
+  assert.equal(held.ok, false);
+  ledger = syncAdmission(ledger, { now: dec1, host: "open.example", jobRef: "unknown", at: dec1.toISOString(), active: false, success: false, settled: true, requestSent: true, connectionFailure: false, costCny: 1.5 }).ledger;
+  assert.equal(ledger.charges.unknown.fen, 150);
+  assert.equal(ledger.charges.unknown.unresolved, false);
+  assert.equal(ledger.charges.unknown.at, nov26.toISOString());
+  assert.equal(decideAdmission(ledger, { now: nov26, host: "third.example", browser: browserB, ip: "e".repeat(64) }, { ...caps, dailyFen: 600 }).ok, true);
+
+  ledger = syncAdmission(ledger, { now: nov26, host: "down.example", jobRef: "offline", at: nov26.toISOString(), active: false, success: false, settled: true, requestSent: true, connectionFailure: true, costCny: null }).ledger;
+  assert.equal(ledger.charges.offline.fen, 0);
+  assert.equal(ledger.charges.offline.blocks_model, false);
+  assert.equal(readBudgetCaps({ VFDIAG_SITE_MODEL_BUDGET_CNY: "6.5", VFDIAG_DAILY_MODEL_BUDGET_CNY: "bad", VFDIAG_MONTHLY_MODEL_BUDGET_CNY: "" }).dailyFen, 3_000);
+  assert.equal(readBudgetCaps({ VFDIAG_SITE_MODEL_BUDGET_CNY: "6.5" }).siteFen, 650);
+});
+
+test("historical reports stay deduplicated without booking the per-site cap", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "vfdiag-admit-history-"));
+  const jobRef = "historyjob01";
+  const jobDir = path.join(dir, "jobs", jobRef);
+  await mkdir(jobDir, { recursive: true });
+  await writeFile(path.join(jobDir, "job.json"), JSON.stringify({
+    job_ref: jobRef,
+    contract_version: "vfdiag.website-diagnosis.v1",
+    state: "complete",
+    created_at: "2026-11-26T14:12:16.548Z",
+    updated_at: "2026-11-27T02:33:59.459Z",
+    expires_at: "2026-12-03T14:12:16.548Z",
+    target_url: "https://www.factory.example/products",
+    target_host: "www.factory.example",
+    language: "zh",
+    report_language: "zh",
+    synthetic: false,
+    idempotency_key: "history-old",
+    body_hash: "history",
+    scope: { max_urls: 50, max_depth: 3, max_reqs_per_sec: 1, wall_clock_seconds: 180, browser: false },
+    checked_pages: 2,
+    remaining_unknown: true,
+    reason_code: null,
+    reason: null,
+    report_available: true,
+    model_authorized: true,
+    customer_report_available: true,
+    customer_report_reason: null,
+    customer_report_revision: "rev",
+    pdf_available: true,
+    pdf_reason: null,
+    engine_version: "2.5.1",
+  }));
+  await writeFile(path.join(jobDir, "commercial-report.json"), JSON.stringify({ revision: "rev", generated_at: "2026-11-26T14:13:17.515Z" }));
+  await writeFile(path.join(jobDir, "commercial-receipt.json"), JSON.stringify({ request_sent: true, valid: true, model_receipt: { estimated_cost_cny: 1.05269 } }));
+  const jobs = createJobService({
+    dataDir: dir,
+    syntheticHosts: new Set(),
+    now: () => clock,
+    lookup: async () => ["93.184.216.34"],
+    run: writeCrawl,
+  });
+  try {
+    await jobs.recover();
+    await jobs.recover();
+    const ledger = JSON.parse(await readFile(path.join(dir, "admission.json"), "utf8")) as { charges: Record<string, { fen: number; at: string }>; sites: Record<string, { success_at: string | null }> };
+    assert.equal(ledger.charges[jobRef].fen, 105);
+    assert.equal(ledger.charges[jobRef].at, "2026-11-26T14:13:17.515Z");
+    assert.equal(ledger.sites["factory.example"].success_at, "2026-11-26T14:13:17.515Z");
+    const again = await jobs.create(paid("https://factory.example/new", "history-new"), { browser: browserB, ip: network });
+    assert.equal(again.status, 409);
+    assert.equal(code(again.body), "SITE_RECENTLY_DIAGNOSED");
+    assert.equal("job_ref" in (again.body as object), false);
   } finally {
     await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 40 });
   }
@@ -270,8 +378,8 @@ test("a restart after a sent model request does not call the model again", async
     assert.equal(calls, 0);
     const commercial = await jobs.commercialReport((again.body as { job_ref: string }).job_ref);
     assert.equal(code(commercial.body), "MODEL_INTERRUPTED");
-    const ledger = JSON.parse(await readFile(path.join(dir, "admission.json"), "utf8")) as { days: Record<string, { spend_fen: number }> };
-    assert.equal(ledger.days["2026-11-26"].spend_fen, 125);
+    const ledger = JSON.parse(await readFile(path.join(dir, "admission.json"), "utf8")) as { charges: Record<string, { fen: number }> };
+    assert.equal(Object.values(ledger.charges).reduce((sum, charge) => sum + charge.fen, 0), 125);
   } finally {
     await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 40 });
   }
