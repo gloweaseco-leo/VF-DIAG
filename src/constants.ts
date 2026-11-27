@@ -5,6 +5,12 @@ export const ENGINE_VERSION = "2.5.1" as const;
 export const REPORT_LANGUAGE = "zh" as const;
 export const REPORT_TIMEZONE = "Asia/Shanghai" as const;
 export const RETENTION_DAYS = 7;
+export const SITE_SUCCESS_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+export const BROWSER_DAILY_SITES = 1;
+export const IP_DAILY_TASKS = 5;
+export const SITE_MODEL_BUDGET_FEN = 600;
+export const DAILY_MODEL_BUDGET_FEN = 3_000;
+export const MONTHLY_MODEL_BUDGET_FEN = 50_000;
 export const MAX_URLS = 50;
 export const MAX_DEPTH = 3;
 export const MAX_REQS_PER_SEC = 1;
@@ -15,6 +21,9 @@ export const MEMORY_LIMIT = "512M";
 export const AUTHORIZATION_VERSION = "2026-11-22";
 export const AUTHORIZATION_STATEMENT =
   "我确认对该网站拥有管理权限，或已获得网站管理者授权进行公开页面诊断。";
+export const MODEL_AUTHORIZATION_VERSION = "2026-11-26-growth-candidate";
+export const MODEL_AUTHORIZATION_STATEMENT =
+  "我确认对该网站拥有管理权限，或已获得网站管理者授权进行公开页面诊断；同意将本次获准公开页面的检测报告及必要摘录提交阿里云百炼 Qwen4-Max 模型处理，用于生成海外获客诊断报告。";
 export const USER_AGENT =
   "VEYFRONT-VFDIAG/0.1 (authorized site diagnosis; +https://veyfront.com/contact)";
 

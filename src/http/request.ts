@@ -1,8 +1,12 @@
 import { createHash } from "node:crypto";
-import { AUTHORIZATION_STATEMENT, AUTHORIZATION_VERSION } from "../constants.ts";
+import { AUTHORIZATION_STATEMENT, AUTHORIZATION_VERSION, MODEL_AUTHORIZATION_STATEMENT, MODEL_AUTHORIZATION_VERSION } from "../constants.ts";
 
 export function authorizationTextHash(): string {
   return createHash("sha256").update(AUTHORIZATION_STATEMENT, "utf8").digest("hex");
+}
+
+export function modelAuthorizationTextHash(): string {
+  return createHash("sha256").update(MODEL_AUTHORIZATION_STATEMENT, "utf8").digest("hex");
 }
 
 export const LOCAL_DEV_TOKEN = "local-docker-dev-token-change-me";
@@ -34,6 +38,7 @@ export type CreateJobBody = {
     accepted_at: string;
     text_hash: string;
   };
+  model_authorized: boolean;
   idempotency_key: string;
 };
 
@@ -62,11 +67,10 @@ export function parseCreateJob(body: unknown): { ok: true; value: CreateJobBody 
   if (auth.accepted !== true) {
     return { ok: false, code: "AUTHORIZATION_REQUIRED", message: "必须明确勾选授权声明后才能扫描。" };
   }
-  if (auth.version !== AUTHORIZATION_VERSION) {
-    return { ok: false, code: "AUTHORIZATION_TEXT_MISMATCH", message: "授权声明版本不是当前版本。" };
-  }
-  if (auth.text_hash !== authorizationTextHash()) {
-    return { ok: false, code: "AUTHORIZATION_TEXT_MISMATCH", message: "授权声明文本与服务器记录不一致。" };
+  const modelAuthorized = auth.version === MODEL_AUTHORIZATION_VERSION && auth.text_hash === modelAuthorizationTextHash();
+  const scanAuthorized = auth.version === AUTHORIZATION_VERSION && auth.text_hash === authorizationTextHash();
+  if (!modelAuthorized && !scanAuthorized) {
+    return { ok: false, code: "AUTHORIZATION_TEXT_MISMATCH", message: "授权声明版本或文本与服务器记录不一致。" };
   }
   if (typeof auth.accepted_at !== "string" || Number.isNaN(Date.parse(auth.accepted_at))) {
     return { ok: false, code: "AUTHORIZATION_REQUIRED", message: "accepted_at 必须是可解析的时间。" };
@@ -78,11 +82,12 @@ export function parseCreateJob(body: unknown): { ok: true; value: CreateJobBody 
       url: record.url,
       language: record.language,
       idempotency_key: record.idempotency_key,
+      model_authorized: modelAuthorized,
       authorization: {
-        version: AUTHORIZATION_VERSION,
+        version: modelAuthorized ? MODEL_AUTHORIZATION_VERSION : AUTHORIZATION_VERSION,
         accepted: true,
         accepted_at: new Date(auth.accepted_at).toISOString(),
-        text_hash: authorizationTextHash(),
+        text_hash: modelAuthorized ? modelAuthorizationTextHash() : authorizationTextHash(),
       },
     },
   };

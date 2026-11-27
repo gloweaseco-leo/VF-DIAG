@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { AUTHORIZATION_STATEMENT, AUTHORIZATION_VERSION } from "../../src/constants.ts";
-import { authorizationTextHash } from "../../src/http/request.ts";
+import { AUTHORIZATION_STATEMENT, AUTHORIZATION_VERSION, MODEL_AUTHORIZATION_STATEMENT, MODEL_AUTHORIZATION_VERSION } from "../../src/constants.ts";
+import { authorizationTextHash, modelAuthorizationTextHash } from "../../src/http/request.ts";
 import { createHttpServer } from "../../src/http/server.ts";
 import { createJobService } from "../../src/jobs/service.ts";
 import type { CrawlResult } from "../../src/siteone/run.ts";
@@ -71,6 +71,13 @@ export async function collectReceipt() {
         version: AUTHORIZATION_VERSION,
         statement: AUTHORIZATION_STATEMENT,
         text_hash: authorizationTextHash(),
+        covers: "公开页面扫描",
+      },
+      model_authorization: {
+        version: MODEL_AUTHORIZATION_VERSION,
+        statement: MODEL_AUTHORIZATION_STATEMENT,
+        text_hash: modelAuthorizationTextHash(),
+        covers: "公开页面扫描和 Qwen4-Max 处理",
       },
       error_shape: "error.code",
       remaining_unknown: true,

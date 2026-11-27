@@ -73,7 +73,9 @@ BFF必须执行同源/CSRF、用户会话、最小频率限制、脱敏错误映
 ### VF-DIAG 内部服务
 与 BFF 一一对应的最小 `POST/GET /v1/jobs`、`POST /v1/jobs/{job_ref}/cancel`、`GET /v1/jobs/{job_ref}/report`、`GET /v1/jobs/{job_ref}/artifacts/{kind}`。浏览器不调用这些路由。调用方带 `Authorization: Bearer`，令牌只放在 VEYFRONT 服务端。kind 只允许 `html` 和 `json`，响应是附件，不在页面里执行 HTML。
 
-**创建请求字段**：`contract_version=vfdiag.website-diagnosis.v1`、`url`、`language=zh|en`、`authorization={version:2026-11-22, accepted:true, accepted_at, text_hash}`、`idempotency_key`。`text_hash` 是授权声明原文的 SHA-256。`language=en` 可以提交，但 `report_language` 固定为 `zh`。同一幂等键加同一请求返回已有任务；同一幂等键换了网址返回 `409 IDEMPOTENCY_CONFLICT`。M0 同时只接受一个未结束任务，多余请求返回 `429 JOB_CAPACITY`。
+**创建请求字段**：`contract_version=vfdiag.website-diagnosis.v1`、`url`、`language=zh|en`、`authorization={version:2026-11-22, accepted:true, accepted_at, text_hash}`、`idempotency_key`。`text_hash` 是授权声明原文的 SHA-256。`language=en` 可以提交，但 `report_language` 固定为 `zh`。同一幂等键加同一请求返回已有任务；同一幂等键换了网址，或换了浏览器标识，返回 `409 IDEMPOTENCY_CONFLICT`，响应里没有任务编号。M0 同时只接受一个未结束任务，多余请求返回 `429 JOB_CAPACITY`。
+
+付费诊断（增长授权，且不是合成主机）还必须带 `X-VF-Admission-Day`（上海日期 `YYYY-MM-DD`）、`X-VF-Admission-Browser` 和 `X-VF-Admission-IP`（各 64 位小写十六进制，按日脱敏）。只去掉 `www` 或改页面路径视为同一网站，其他子域名分开计算。同一网站 7 天内已完成一次商业诊断返回 `409 SITE_RECENTLY_DIAGNOSED`；正在诊断返回 `409 SITE_DIAGNOSIS_IN_PROGRESS`。这些拒绝不返回已有任务编号或报告。同一浏览器每天一个新网站，返回 `429 BROWSER_DAILY_LIMIT`。同一网络标识每天最多 5 个新任务，返回 `429 IP_DAILY_LIMIT`。模型费用按实际估算入账，不把单站 6 元预占进账本。单站诊断硬上限 6 元、上海自然日 30 元、自然月 500 元，分别由 `VFDIAG_SITE_MODEL_BUDGET_CNY`、`VFDIAG_DAILY_MODEL_BUDGET_CNY`、`VFDIAG_MONTHLY_MODEL_BUDGET_CNY` 调整。创建任务时按一次调用的最低费用上限判断，真正发起前按本次材料的费用上限判断；已入账金额加上这次上限会突破任一硬上限时，不再调用模型，返回 `429 DAILY_BUDGET_LIMIT`，原因写在 message 里。未结清调用只暂记它自己的费用上限，结清后改成实际金额。连接失败记 0 元。已有报告和 PDF 仍可读取。失败、取消或重启后的重试不第二次调用模型。缺少或过期的准入头返回 `400 ADMISSION_REQUIRED`。只扫描授权和合成任务不走这套限额。仍在 7 天有效期内、已经交付客户报告的历史任务在启动时纳入同一网站去重。
 
 **任务状态**：`queued | validating | running | summarizing | complete | partial | failed | cancelled | expired`。状态体包含 `job_ref,state,updated_at,expires_at,scope,checked_pages,remaining_unknown,reason_code,reason,poll_after_seconds,report_available,target_host,synthetic,report_language`。`remaining_unknown` 在 M0 恒为 true，不返回百分比。工件和报告保留 7 天。到期后读取返回 `410`，并删除该任务目录里的 `siteone.html`、`siteone.json`、`report.json`；`job.json` 只留下过期状态。Worker 重启时也会清掉已到期任务的这三份工件。
 
@@ -89,7 +91,7 @@ BFF必须执行同源/CSRF、用户会话、最小频率限制、脱敏错误映
 | `synthetic-special-upgrade.report.json` | 产品路径和联系路径都有已证实 404。下一步是讨论升级，不是重建。 |
 | `synthetic-engine-failed.status.json` | 扫描没有留下 JSON。任务失败，不发布客户报告。 |
 
-稳定错误码包括：`TARGET_URL_INVALID`、`TARGET_SCHEME_REJECTED`、`TARGET_HOST_REJECTED`、`TARGET_PRIVATE_ADDRESS`、`TARGET_DNS_FAILED`、`TARGET_PORT_REJECTED`、`AUTHORIZATION_REQUIRED`、`AUTHORIZATION_TEXT_MISMATCH`、`IDEMPOTENCY_CONFLICT`、`JOB_CAPACITY`、`JOB_NOT_FOUND`、`REPORT_NOT_READY`、`ARTIFACT_NOT_FOUND`、`ENGINE_BINARY_MISSING`、`ENGINE_VERSION_MISMATCH`、`ENGINE_TIMEOUT`、`ENGINE_FAILED`、`UNSAFE_OFFHOST`、`WORKER_RESTARTED`、`EXPIRED`。
+稳定错误码包括：`TARGET_URL_INVALID`、`TARGET_SCHEME_REJECTED`、`TARGET_HOST_REJECTED`、`TARGET_PRIVATE_ADDRESS`、`TARGET_DNS_FAILED`、`TARGET_PORT_REJECTED`、`AUTHORIZATION_REQUIRED`、`AUTHORIZATION_TEXT_MISMATCH`、`IDEMPOTENCY_CONFLICT`、`JOB_CAPACITY`、`JOB_NOT_FOUND`、`REPORT_NOT_READY`、`ARTIFACT_NOT_FOUND`、`ENGINE_BINARY_MISSING`、`ENGINE_VERSION_MISMATCH`、`ENGINE_TIMEOUT`、`ENGINE_FAILED`、`UNSAFE_OFFHOST`、`WORKER_RESTARTED`、`EXPIRED`、`ADMISSION_REQUIRED`、`SITE_RECENTLY_DIAGNOSED`、`SITE_DIAGNOSIS_IN_PROGRESS`、`BROWSER_DAILY_LIMIT`、`IP_DAILY_LIMIT`、`DAILY_BUDGET_LIMIT`。
 
 **契约约束**：BFF 只消费上述投影。未知 `report_schema_version` 关闭报告展示。扫描完成但产品或联系仍未核实的，任务可以是 `complete`，报告 `headline.status` 为 `partial`。
 
@@ -125,3 +127,9 @@ BFF必须执行同源/CSRF、用户会话、最小频率限制、脱敏错误映
 - **不新增**独立前端仓库、共享生产数据库、完整多引擎诊断平台、VRAE兼容层、CRM、复杂账号系统、虚假进度或自动销售转化。
 
 **Owner验收句：VEYFRONT客户在同一品牌旅程中输入网址并授权，真实调用独立SiteOne Worker，看到可回查的产品/联系观察与合理改善建议，再自主选择是否咨询。**
+
+## 9. 商业报告数据（2026-11-26 增补）
+
+扫描之后，VF-DIAG 可以用 Qwen4-Max 和 Skill V0.3 生成第二份数据：`GET /v1/jobs/:ref/commercial-report`。任务状态上补充 `customer_report_available`、`customer_report_reason`、`customer_report_revision`、`commercial_contract_version`、`pdf_available` 和 `pdf_reason`。PDF 由 VF-DIAG 向 VF 的 `/website-diagnosis/print` 请求后保存，失败时 `POST /v1/jobs/:ref/pdf` 单独重试。字段和授权见 [商业报告数据契约 V1](VF_DIAG_COMMERCIAL_REPORT_V1.md)。原有 `/report` 技术投影不变。
+
+PDF 仍由 VEYFRONT 用 V2.1 打印样式生成。VF-DIAG 只提供数据和 `pdf.status = PENDING_VEYFRONT_PRINT`。这一步还没有跨仓联调。

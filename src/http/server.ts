@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { timingSafeEqual } from "node:crypto";
 import { accessLog, redactSecrets } from "./redact.ts";
 import { parseCreateJob } from "./request.ts";
+import { readAdmissionHeaders, type AdmissionIdentity } from "../jobs/admission.ts";
 import type { JobService } from "../jobs/service.ts";
 
 export function createHttpServer(options: { token: string; jobs: JobService; ratePerMinute?: number }) {
@@ -50,14 +51,23 @@ async function handle(
     return;
   }
 
-  const jobMatch = path.match(/^\/v1\/jobs\/([A-Za-z0-9_-]{8,80})(\/report|\/cancel|\/artifacts\/(html|json))?$/);
+  const jobMatch = path.match(/^\/v1\/jobs\/([A-Za-z0-9_-]{8,80})(\/report|\/commercial-report|\/pdf|\/cancel|\/artifacts\/(html|json|pdf))?$/);
   if (req.method === "POST" && path === "/v1/jobs") {
     const parsed = parseCreateJob(await readJson(req));
     if (!parsed.ok) {
       respond(400, { error: { code: parsed.code, message: parsed.message } });
       return;
     }
-    const created = await options.jobs.create(parsed.value);
+    let admission: AdmissionIdentity | null | undefined;
+    if (parsed.value.model_authorized) {
+      const gate = readAdmissionHeaders({ get: (name) => headerValue(req, name) }, new Date());
+      if (!gate.ok) {
+        respond(gate.status, { error: { code: gate.code, message: gate.message } });
+        return;
+      }
+      admission = gate.value;
+    }
+    const created = await options.jobs.create(parsed.value, admission);
     respond(created.status, created.body);
     return;
   }
@@ -82,9 +92,19 @@ async function handle(
     respond(result.status, result.body);
     return;
   }
-  const artifact = suffix.match(/^\/artifacts\/(html|json)$/);
+  if (req.method === "GET" && suffix === "/commercial-report") {
+    const result = await options.jobs.commercialReport(jobRef, url.searchParams.get("revision"));
+    respond(result.status, result.body);
+    return;
+  }
+  if (req.method === "POST" && suffix === "/pdf") {
+    const result = await options.jobs.retryPdf(jobRef);
+    respond(result.status, result.body);
+    return;
+  }
+  const artifact = suffix.match(/^\/artifacts\/(html|json|pdf)$/);
   if (req.method === "GET" && artifact) {
-    const result = await options.jobs.artifact(jobRef, artifact[1]);
+    const result = await options.jobs.artifact(jobRef, artifact[1], url.searchParams.get("revision"));
     if ("contentType" in result) {
       res.writeHead(200, {
         "content-type": result.contentType,
@@ -92,6 +112,7 @@ async function handle(
         "cache-control": "no-store",
         "x-content-type-options": "nosniff",
         "referrer-policy": "no-referrer",
+        ...(result.revision ? { "x-report-revision": result.revision } : {}),
       });
       console.log(accessLog(req.method, path, 200, options.token));
       res.end(result.body);
@@ -116,6 +137,12 @@ function tooMany(req: IncomingMessage, hits: Map<string, number[]>, limit: numbe
   recent.push(now);
   hits.set(key, recent);
   return false;
+}
+
+function headerValue(req: IncomingMessage, name: string): string | null {
+  const value = req.headers[name];
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
 }
 
 function authorized(req: IncomingMessage, token: string): boolean {

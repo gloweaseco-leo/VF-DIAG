@@ -1,0 +1,710 @@
+{
+  "contract_version": "vfdiag.commercial-report.v1",
+  "job_ref": "",
+  "revision": "f944da5bc241e3decba5bdaf85c5259a8d3a8c1b503501f7c15d08691c36b51e",
+  "synthetic": false,
+  "report_language": "zh",
+  "generated_at": "2026-11-26T00:00:00.000Z",
+  "subject": {
+    "domain": "jjgamemachine.com",
+    "observed_at": "2026-11-24 15:02:33 (Asia/Shanghai)",
+    "checked_urls": 50,
+    "http_200": 47,
+    "http_301": 1,
+    "scope_summary": "本次为单域名静态抽样：抓取命令限定 allowed-domain=jjgamemachine.com、max-depth=3、max-visited-urls=50、1 请求/秒，并禁用 JavaScript、样式、字体与图片。visited-urls 表实际记录 50 条（上限已用满），其中 47 条 200（46 个 HTML 页 + 1 个 sitemap.xml）、1 条 301（/about → /about/，目标未访问）、2 条 404 资源（/cdn-cgi/l/email-protection、/templates/sqv/images/video/1.mp4，均发现于首页）。SEO 元数据表与标题结构表各 46 行，与 46 个 HTML 页对应，构成本报告的主要分母。",
+    "limitations": [
+      "50 条 URL 上限已用满，非全站覆盖；sitemap.xml 未展开解析，全站页面与产品总数未知",
+      "禁用 JavaScript/CSS/字体/图片且未渲染，无视觉、移动端与真实加载体验证据",
+      "未提取完整正文、规格表、图片与视频内容，页面表达层判断仅基于标题结构与元数据",
+      "/about 的 301 目标 /about/ 未访问，企业介绍页内容未覆盖",
+      "wa.me、m.me 及各社交外链按 Not allowed host 跳过，可用性未验证",
+      "未提交任何表单，邮件送达、收件箱与业务响应未测试",
+      "无收录、排名、流量、询盘与 CRM 数据，商业效果只能推断",
+      "安全/无障碍/表单/电话表的 Occurs 为规则命中次数，不等于受影响页面数"
+    ],
+    "data_sufficiency": "adequate_for_limited_report",
+    "limited": false
+  },
+  "delivery": {
+    "profile": "veyfront.overseas-acquisition.v2.1",
+    "sections": [
+      "overview",
+      "discover",
+      "convince",
+      "connect",
+      "next",
+      "technical_appendix"
+    ],
+    "pdf": {
+      "producer": "VEYFRONT",
+      "status": "PENDING_VEYFRONT_PRINT",
+      "visual_system": "veyfront.report.v2.1"
+    }
+  },
+  "overview": {
+    "headline": "SQV 已有 8 个型号化的 VR/游乐设备详情页和一个内容完整的 VR 开店招商页，但 19 个产品类目页全部缺主标题、9 个类目与 6 个客户案例共用同一段通用文案，海外买家从类目和案例进入时的辨识与信任承接，值得作为一次系统性升级来评估。",
+    "verdict": "site_rebuild_assessment",
+    "verdict_label": "建议评估一次系统性升级",
+    "verdict_reason": "证据不是孤立标签问题，而是跨页面角色的模板级共性：19 个类目页统一缺 H1、9 个类目沿用公司简介描述（E03/E05）、6 个案例页标题完全相同（E06）、内容最完整的 /vr 招商页元数据为空（E08/E09）、留言表单字段在 46 个页面量级上统一缺标签（E12）、首页两处资源 404（E15）、品牌英文名在标题与描述中不一致（E20）。这些环节恰好串起买家“找到类目 → 判断机型与供应商 → 发起询盘”的同一条路径，单点修补难以让它们协同。同时企业已有可复用资产：8 个详情页的差异化文案、10 个类目已有的专属描述、/vr 的招商叙事与多渠道联系方式，说明升级应以现有内容为基础重组入口与承接，而不是推倒重来。据此建议评估整体升级/重建方案，并与局部优化路径做范围对比；本次静态证据不能判定必须更换平台，也不预测投入回报。",
+    "strengths": [
+      {
+        "text": "产品详情页已有型号化表达：8 个受检详情页拥有与产品名一致的唯一 H1、差异化描述与关键词（如 Godzilla VR rotating chairs 的 9D 双人旋转椅、electric drift cart 的漂移/360 度旋转/刹车卖点），可直接作为升级后的内容底座。",
+        "evidence_ids": [
+          "E07"
+        ]
+      },
+      {
+        "text": "/vr 已具备面向投资方的完整招商叙事结构：市场规模、成功案例、盈利方式、8 个机型、研发与 OEM 服务、合作伙伴与联系区，属于同类制造企业中少见的现成方案型资产。",
+        "evidence_ids": [
+          "E08"
+        ]
+      },
+      {
+        "text": "联系与访问基础可用：/contact 返回 200，产品详情页均设 Leave a Message 留言区，页面提供多个销售电话与 WhatsApp/Messenger 入口，HTTPS 证书由系统 CA 信任且检测时仍有效 64.8 天。",
+        "evidence_ids": [
+          "E11",
+          "E13",
+          "E14",
+          "E17"
+        ]
+      }
+    ],
+    "buyer_tasks": [
+      {
+        "task": "find_products",
+        "title": "找到产品",
+        "status": "OBSERVED",
+        "fact": "静态可见：19 个产品类目页与 8 个型号化详情页均返回 200，类目页标题结构列出大量具体机型；但 19 个类目页全部缺 H1，9 个类目与 6 个案例页共用通用描述/标题。",
+        "unknown": "实际收录量、关键词排名、海外搜索流量与买家点击路径均未检测，50 条 URL 上限外的类目与产品未覆盖。",
+        "evidence_ids": [
+          "E03",
+          "E04",
+          "E05",
+          "E06",
+          "E07"
+        ]
+      },
+      {
+        "task": "understand_products",
+        "title": "看懂产品",
+        "status": "INFERRED",
+        "fact": "详情页描述已含卖点（如 electric drift cart 的漂移、360 度旋转、刹车；6 seats flight simulator 的 9D 影院定位），/vr 页有市场与盈利叙事，据此推断企业具备面向投资方与运营方组织选型说明的素材基础。",
+        "unknown": "未抓取正文、规格参数、图片与视频（本次禁用图片/JS/CSS），无法判断功率、尺寸、认证、报价与交付条款等选型资料是否齐全。",
+        "evidence_ids": [
+          "E07",
+          "E08",
+          "E10"
+        ]
+      },
+      {
+        "task": "contact_supplier",
+        "title": "联系供应商",
+        "status": "NEEDS_CONFIRMATION",
+        "fact": "/contact 与详情页均有留言表单，页面提供多个电话与 WhatsApp/Messenger 入口；表单五个字段各 46 次缺标签，电话为纯文本，首页邮箱保护地址返回 404。",
+        "unknown": "未提交表单、未验证邮件送达与业务回复，WhatsApp/Messenger 链接被跳过未访问，因此无法判断询盘链路是否真正通畅。",
+        "evidence_ids": [
+          "E12",
+          "E13",
+          "E14",
+          "E15"
+        ]
+      }
+    ]
+  },
+  "chapters": [
+    {
+      "id": "discover",
+      "title": "产品被找到、被看懂",
+      "findings": [
+        {
+          "id": "F01",
+          "priority": "P1",
+          "area": "product_discoverability",
+          "title": "产品类目是海外买家的第一入口，但目前 19 个类目页共用一套通用外壳",
+          "observed_fact": "46 个受检 HTML 页中，19 个产品类目页 H1 全部记为 Missing H1；其中 9 个类目（含 Interactive Sports Projects、Amusement rides、Arcade machine、Electric car、Kid racing 等）描述仍是同一段公司简介，全表共 23 页共用该段文案。与此同时，另 10 个类目（如 Claw machine、Kiddie rides、Sports machine）已写出类目专属描述，8 个产品详情页也已有唯一 H1 与卖点描述。以 Interactive Sports Projects 为例，页面标题结构已列出 Olympic shooting、Indoor Interactive football、Interactive archery 等 9 个具体项目，但类目层没有对应的主题标识。",
+          "possible_effect": "海外乐园投资方、场地运营商与经销商通常先按“claw machine / kiddie rides / interactive sports”这类品类词检索并快速比对供应商。类目层已有真实产品名，却缺少差异化的主题标识与描述，等于把已经存在的产品线优势藏在通用外壳里；把 19 个类目按采购用途组织成各自独立的营销入口（并复用已有 10 个类目的写法），有机会让对的买家更快落到对的品类，而不是所有品类都用同一句企业介绍对外表达。这是基于静态证据的商业推断，本次未检测收录、排名与流量。",
+          "effect_level": "INFERRED",
+          "recommended_action": "以现有 10 个已差异化类目为模板，为全部 19 个类目建立“唯一主标题 + 品类主题描述 + 代表机型”的统一入口层，并把类目页已有的具体项目名（如室内互动足球、模拟保龄球、抓娃娃机机型）提升为可识别的子主题；升级时保留 8 个详情页现有文案资产。",
+          "acceptance_checks": [
+            "复检 19 个 /product/list-* 类目页均有唯一 H1，且与该类目标题主题一致",
+            "复检类目页 description 不再等于公司简介默认值（当前 9 个命中）",
+            "抽样类目的 Title / H1 / Description 三者主题一致，且原有 10 个专属描述不被覆盖为通用文案"
+          ],
+          "needs_confirmation": [
+            "未抓取类目页正文与筛选项，无法确认页面是否已有等效的可见主标题",
+            "实际收录、搜索表现与买家点击行为本次未检测"
+          ],
+          "evidence_ids": [
+            "E03",
+            "E04",
+            "E05",
+            "E07",
+            "E10"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "convince",
+      "title": "信任与已有营销资产",
+      "findings": [
+        {
+          "id": "F02",
+          "priority": "P1",
+          "area": "trust",
+          "title": "VR 招商页与客户案例是现成的信任资产，却还没有对外的独立身份",
+          "observed_fact": "/vr 页标题结构包含 WHY VR BUSINESS?、market size、success case、HOW CAN I MAKE A PROFIT?、WHY SQV ANIM VR?（Experienced / R&D team / Certificates / OEM Services / Guidance）与 Contact us，但其 Title 仅为 \"Vr-\" 加通用后缀，Description 与 Keywords 为空。同时本次抽到的 6 个客户案例页标题全部为 \"With the customer photo-...\"，描述同为公司简介。产品详情页模板中，两个页面把板块标题写成 \"Game Contect\"、另两个写成 \"Game content\"；首页标题后缀拼写为 \"Arcade game mahcines, Crane Came Machines\"，且标题用 Amusement Equipment、描述用 Animation 两种公司名。",
+          "possible_effect": "开一家 VR 体验店或采购整套乐园设备的买家，关心的是回本模型、已交付案例与售后指导，而这些内容企业其实已经写好了；案例页也有真实素材。问题在于这些资产对外没有各自可识别的主题，案例之间无法区分，英文拼写与品牌名不一致又会在供应商比对环节削弱专业印象。把招商页与案例升级为可独立识别、可复用的选型与信任内容，是把已有投入变成获客资产的低风险方向。资质与案例真实性需企业确认，本次未核验。",
+          "effect_level": "INFERRED",
+          "recommended_action": "为 /vr 建立独立的方案主题标识与摘要，并把 6 个客户案例按项目类型（乐园/商场/体验馆等，以企业可公开信息为准）整理成各自可识别的案例主题，与 VR 机型、OEM 与售后指导形成一条完整的供应商论证链；同步统一英文板块用语与对外公司名表述。",
+          "acceptance_checks": [
+            "/vr 具备唯一 description 与 keywords，标题体现 VR 整体方案主题而非仅 \"Vr-\"",
+            "6 个案例页标题各自可区分，不再同为 \"With the customer photo\"",
+            "详情页板块标题统一为 Game content，标题与描述中的公司英文名一致"
+          ],
+          "needs_confirmation": [
+            "案例正文与客户项目细节未抓取，需企业确认可公开范围",
+            "/vr 页 Certificates 栏目所指资质的真实性与有效期未核验",
+            "首页导出链接（backlinks-exchange.net、metinfo.cn 等）与 /vr 的 https://vr-solutions/ 是否为有意保留，需业务确认"
+          ],
+          "evidence_ids": [
+            "E08",
+            "E09",
+            "E06",
+            "E11",
+            "E20",
+            "E18"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "connect",
+      "title": "询盘与联系承接",
+      "findings": [
+        {
+          "id": "F03",
+          "priority": "P2",
+          "area": "inquiry",
+          "title": "询盘入口已经铺满全站，值得先做一次收件核验再谈承接优化",
+          "observed_fact": "/contact 返回 200，8 个产品详情页均有 Leave a Message 留言区；但 message-name / message-email / message-phone / message-address / message-text 五个字段各命中 46 次缺少标签。电话确实存在（+86 130 7679 8682、+86 130 4807 5082 各命中 37 次，+8618818540275 出现在 /contact 与两个 VR 详情页），只是以纯文本呈现。首页与 VR 详情页提供了 WhatsApp/Messenger 链接，但按 Not allowed host 跳过、未验证。首页引用的 /cdn-cgi/l/email-protection 与 /templates/sqv/images/video/1.mp4 两个资源返回 404。",
+          "possible_effect": "买家在详情页产生意向后，最省事的路径是一键拨号、一键 WhatsApp 或填一张字段清楚的表单。字段无标签会让填写与自动填充更容易出错，纯文本电话在移动端需要手动复制；这些是静态可见的摩擦，但是否真的造成询盘流失本次没有证据。首页邮箱保护地址 404 与首页视频 404 属于需要优先澄清的承接风险线索，而不是已确认的故障——邮箱地址展示与收件是否正常，只能实测。",
+          "effect_level": "INFERRED",
+          "recommended_action": "先做一次低成本验证：经企业授权，从产品详情页与 /contact 各发送一封带明确标记的测试询盘，由企业确认收件箱、垃圾邮件判定与回复路径，并人工点击一次 WhatsApp 与电话入口；确认结果后，再统一升级表单字段标签、一键拨号/一键聊天与首页资源引用。",
+          "acceptance_checks": [
+            "带标记测试询盘由企业书面确认收到并说明进入哪个邮箱/是否被判垃圾",
+            "留言表单五个字段具备可读标签，站内搜索框具备可访问名称",
+            "电话提供 tel: 或等效一键拨号，WhatsApp 入口经人工点击确认可达",
+            "首页两处 404 资源（1.mp4、email-protection）的处理结果可复核"
+          ],
+          "needs_confirmation": [
+            "本次未提交任何表单，邮件送达与业务响应速度未测试",
+            "wa.me / m.me 链接被跳过，可用性未验证",
+            "首页视频与邮箱保护 404 对首屏展示的实际影响未渲染确认"
+          ],
+          "evidence_ids": [
+            "E12",
+            "E13",
+            "E14",
+            "E15",
+            "E11"
+          ]
+        }
+      ]
+    }
+  ],
+  "visuals": [
+    {
+      "id": "V01",
+      "type": "data_comparison",
+      "caption": "主标题覆盖对比：46 个受检 HTML 页中，19 个产品类目页全部缺 H1，8 个产品详情页与 /vr 已有唯一 H1。",
+      "disclaimer": "数据来自本次 50 条 URL 静态抽样中的 46 个 HTML 页，非全站统计；缺 H1 为标记层事实，不代表页面没有可见产品名。",
+      "evidence_ids": [
+        "E03",
+        "E07"
+      ],
+      "asset_available": false,
+      "sources": [
+        {
+          "evidence_id": "E03",
+          "source_file": "jjgamemachine.source.html",
+          "source_location": "TABLE seo id=t6ce234（46 行）H1 列逐行复核",
+          "url": "https://jjgamemachine.com/product/list-vr-en.html",
+          "raw_value": "list-vr / list-42 / list-43 / list-arcade-machine 等 19 个类目页 H1=\"Missing H1\"；全表 Missing H1 共 37 行"
+        },
+        {
+          "evidence_id": "E07",
+          "source_file": "jjgamemachine.source.html",
+          "source_location": "TABLE seo id=t6ce234 中 8 个 /product/*-en.html 详情行（Title/H1/Description/Keywords）",
+          "url": "https://jjgamemachine.com/product/Godzilla_VR_rotating_chairs-en.html",
+          "raw_value": "H1=\"Godzilla VR rotating chairs\"；Description=\"9D VR rotating chairs double player Virtual Reality Game\"；Keywords=\"Virtual Reality games,Godzilla,double player,9D VR rotating chairs,factory price,arcade game machine\""
+        }
+      ]
+    },
+    {
+      "id": "V02",
+      "type": "data_comparison",
+      "caption": "描述文案分布：23 页共用同一段公司简介，3 页为空（/contact、/vr、/why-us），其余 20 页已有专属描述（8 个详情页 + 10 个类目页 + 2 篇资讯）。",
+      "disclaimer": "基于报告重复描述组与逐页元数据复算，分母为 46 个受检 HTML 页；重复描述不等于实际搜索结果摘要相同。",
+      "evidence_ids": [
+        "E04",
+        "E05",
+        "E07",
+        "E09"
+      ],
+      "asset_available": false,
+      "sources": [
+        {
+          "evidence_id": "E04",
+          "source_file": "jjgamemachine.source.html",
+          "source_location": "TABLE non-unique-descriptions id=t87e1ff（2 行）",
+          "url": "https://jjgamemachine.com/product/",
+          "raw_value": "Count=23: \"Guangzhou SQV Animation Co., Ltd, Experts in Manufacturing and Exporting Arcade game machines,Crane game Machines,indoor and out door amusement.\"；Count=3: \"\""
+        },
+        {
+          "evidence_id": "E05",
+          "source_file": "jjgamemachine.source.html",
+          "source_location": "TABLE seo id=t6ce234 中 19 个 /product/list-* 行 Description 列分组复算",
+          "url": "https://jjgamemachine.com/product/list-claw-machine-en.html",
+          "raw_value": "9 个类目页 Description=公司简介默认值；10 个专属，例：\"Crane Games, Claw Games, Crane Merchandisers, Claw Machines, Crane Machines, Crane Vending Machines and Claw Crane Vending Machines for sale\""
+        },
+        {
+          "evidence_id": "E07",
+          "source_file": "jjgamemachine.source.html",
+          "source_location": "TABLE seo id=t6ce234 中 8 个 /product/*-en.html 详情行（Title/H1/Description/Keywords）",
+          "url": "https://jjgamemachine.com/product/Godzilla_VR_rotating_chairs-en.html",
+          "raw_value": "H1=\"Godzilla VR rotating chairs\"；Description=\"9D VR rotating chairs double player Virtual Reality Game\"；Keywords=\"Virtual Reality games,Godzilla,double player,9D VR rotating chairs,factory price,arcade game machine\""
+        },
+        {
+          "evidence_id": "E09",
+          "source_file": "jjgamemachine.source.html",
+          "source_location": "TABLE seo id=t6ce234 行 URL=/vr",
+          "url": "https://jjgamemachine.com/vr",
+          "raw_value": "Title=\"Vr-Guangzhou SQV Amusement Equipment Co., Ltd. - Arcade game mahcines, Crane Came Machines\"；Description=\"\"；Keywords=\"\""
+        }
+      ]
+    },
+    {
+      "id": "V03",
+      "type": "data_comparison",
+      "caption": "信任资产对照：6 个客户案例页共用同一标题 \"With the customer photo\"，而 /vr 招商页已提取到 26 条标题结构（含市场规模、成功案例、盈利方式、OEM 与售后指导）。",
+      "disclaimer": "仅对比报告提取的标题与标题结构文本，未读取正文，不判断案例内容与资质的真实性。",
+      "evidence_ids": [
+        "E06",
+        "E08"
+      ],
+      "asset_available": false,
+      "sources": [
+        {
+          "evidence_id": "E06",
+          "source_file": "jjgamemachine.source.html",
+          "source_location": "TABLE non-unique-titles id=t594f61（1 行）+ TABLE seo 中 /case/2、3、4、7、8、9 行",
+          "url": "https://jjgamemachine.com/case/7-en.html",
+          "raw_value": "Count=6, Title=\"With the customer photo-Guangzhou SQV Amusement Equipment Co., Ltd. - Arcade Machines & Amusement Equipments for sale\""
+        },
+        {
+          "evidence_id": "E08",
+          "source_file": "jjgamemachine.source.html",
+          "source_location": "TABLE seo-headings id=teeb9a7 行 URL=/vr（Count 26 / Errors 5）",
+          "url": "https://jjgamemachine.com/vr",
+          "raw_value": "<h2> Open a VR arcade in your city <h1> WHY VR BUSINESS? <h3> market size <h3> success case ... <h2> HOW CAN I MAKE A PROFIT? ... <h3> Certificates <h3> OEM Services ... <h2> Contact us <h3> Reply within 12 hours"
+        }
+      ]
+    },
+    {
+      "id": "V04",
+      "type": "data_comparison",
+      "caption": "询盘承接静态线索：留言表单 5 个字段各命中 46 次缺标签，2 个主销售号码各命中 37 次纯文本，首页 2 处资源返回 404。",
+      "disclaimer": "Occurs 为规则命中次数，不等于受影响页面数；未提交表单、未验证邮件与 WhatsApp，不代表询盘已经丢失。",
+      "evidence_ids": [
+        "E12",
+        "E13",
+        "E15"
+      ],
+      "asset_available": false,
+      "sources": [
+        {
+          "evidence_id": "E12",
+          "source_file": "jjgamemachine.source.html",
+          "source_location": "TABLE missing-form-labels id=tceecf7（10 行）",
+          "url": null,
+          "raw_value": "id=\"message-name\" Occurs=46；id=\"message-text\" Occurs=46；id=\"message-address\" Occurs=46；id=\"message-phone\" Occurs=46；id=\"message-email\" Occurs=46；name=\"q\" Occurs=46"
+        },
+        {
+          "evidence_id": "E13",
+          "source_file": "jjgamemachine.source.html",
+          "source_location": "TABLE non-clickable-phone-numbers id=t36d038（10 行）",
+          "url": "https://jjgamemachine.com/contact",
+          "raw_value": "\"+86 130 7679 8682\" Occurs=37；\"+86 130 4807 5082\" Occurs=37；\"+8618818540275\" Occurs=3，Affected URLs: /contact、/product/double_player_rocket_VR_machine-en.html、/product/360%C2%B0_Kingkong_VR_2-en.html"
+        },
+        {
+          "evidence_id": "E15",
+          "source_file": "jjgamemachine.source.html",
+          "source_location": "TABLE 404 id=t39ba1b（2 行）+ TABLE visited-urls 对应行",
+          "url": "https://jjgamemachine.com/",
+          "raw_value": "404 https://jjgamemachine.com/templates/sqv/images/video/1.mp4（Found at /）；404 https://jjgamemachine.com/cdn-cgi/l/email-protection（Found at /）"
+        }
+      ]
+    },
+    {
+      "id": "V05",
+      "type": "proposed_improvement",
+      "caption": "升级方向示意：把“差异化类目入口 → 型号详情与选型说明 → VR 招商与案例佐证 → 一键联系/RFQ”串成一条买家路径，复用现有 10 个类目文案与 8 个详情页资产。",
+      "disclaimer": "改善示意，非真实网页或搜索结果；不含前后数据、排名或询盘增长预测。",
+      "evidence_ids": [
+        "E05",
+        "E07",
+        "E08",
+        "E13"
+      ],
+      "asset_available": false,
+      "sources": [
+        {
+          "evidence_id": "E05",
+          "source_file": "jjgamemachine.source.html",
+          "source_location": "TABLE seo id=t6ce234 中 19 个 /product/list-* 行 Description 列分组复算",
+          "url": "https://jjgamemachine.com/product/list-claw-machine-en.html",
+          "raw_value": "9 个类目页 Description=公司简介默认值；10 个专属，例：\"Crane Games, Claw Games, Crane Merchandisers, Claw Machines, Crane Machines, Crane Vending Machines and Claw Crane Vending Machines for sale\""
+        },
+        {
+          "evidence_id": "E07",
+          "source_file": "jjgamemachine.source.html",
+          "source_location": "TABLE seo id=t6ce234 中 8 个 /product/*-en.html 详情行（Title/H1/Description/Keywords）",
+          "url": "https://jjgamemachine.com/product/Godzilla_VR_rotating_chairs-en.html",
+          "raw_value": "H1=\"Godzilla VR rotating chairs\"；Description=\"9D VR rotating chairs double player Virtual Reality Game\"；Keywords=\"Virtual Reality games,Godzilla,double player,9D VR rotating chairs,factory price,arcade game machine\""
+        },
+        {
+          "evidence_id": "E08",
+          "source_file": "jjgamemachine.source.html",
+          "source_location": "TABLE seo-headings id=teeb9a7 行 URL=/vr（Count 26 / Errors 5）",
+          "url": "https://jjgamemachine.com/vr",
+          "raw_value": "<h2> Open a VR arcade in your city <h1> WHY VR BUSINESS? <h3> market size <h3> success case ... <h2> HOW CAN I MAKE A PROFIT? ... <h3> Certificates <h3> OEM Services ... <h2> Contact us <h3> Reply within 12 hours"
+        },
+        {
+          "evidence_id": "E13",
+          "source_file": "jjgamemachine.source.html",
+          "source_location": "TABLE non-clickable-phone-numbers id=t36d038（10 行）",
+          "url": "https://jjgamemachine.com/contact",
+          "raw_value": "\"+86 130 7679 8682\" Occurs=37；\"+86 130 4807 5082\" Occurs=37；\"+8618818540275\" Occurs=3，Affected URLs: /contact、/product/double_player_rocket_VR_machine-en.html、/product/360%C2%B0_Kingkong_VR_2-en.html"
+        }
+      ]
+    }
+  ],
+  "next_step": {
+    "offer_name": "VEYFRONT 海外获客独立站升级方向沟通（含整体升级/重建与局部优化的范围对比）",
+    "offer_scope": "基于本次 50 条 URL 的静态抽样证据，与企业共同确定首期优先方向：A 类目入口差异化（19 个类目页主题与主标题）、B VR 招商与客户案例的信任内容重组、C 询盘承接核验与一键联系改造；输出保留现有资产的两条路径（系统性升级 vs 局部优化）范围对比与验收口径。不含本次未执行的渲染、正文、外链与收件测试结论。",
+    "cta_label": "选一个优先方向，获取升级范围对比",
+    "cta_request": "请在 A（类目入口）/ B（VR 招商与案例）/ C（询盘承接）中选择首期优先方向，并授权一次带明确标记的测试询盘用于核对实际收件；VEYFRONT 据此给出整体升级与局部优化两种路径的范围、依赖与验收方式对比，供企业决策。",
+    "unpromised_fields": [
+      "不承诺免费服务、工期、报价与交付时间",
+      "不承诺搜索排名、收录量、流量、询盘量或收入增长",
+      "不声称必须更换平台或必须重建",
+      "不对未验证的邮件送达、WhatsApp 可用性、资质真实性与后端版本下结论",
+      "不提供本次未检测的视觉、移动端与真实加载速度结论"
+    ],
+    "choices": [
+      {
+        "id": "F01",
+        "label": "产品类目是海外买家的第一入口，但目前 19 个类目页共用一套通用外壳",
+        "area": "product_discoverability"
+      },
+      {
+        "id": "F02",
+        "label": "VR 招商页与客户案例是现成的信任资产，却还没有对外的独立身份",
+        "area": "trust"
+      },
+      {
+        "id": "F03",
+        "label": "询盘入口已经铺满全站，值得先做一次收件核验再谈承接优化",
+        "area": "inquiry"
+      }
+    ]
+  },
+  "technical_appendix": {
+    "is_business_score": false,
+    "score_scale": "NOT_FOUND",
+    "overall": {
+      "label": "Website Quality Score（原报告 Fair）",
+      "score": 5.7,
+      "max_score": null,
+      "caveat": "原报告未给出满分刻度，故不换算；这是静态技术体检参考，不代表获客能力、行业排名或订单表现。"
+    },
+    "dimensions": [
+      {
+        "label": "Performance",
+        "score": 9.3,
+        "max_score": null,
+        "caveat": "本次禁用 JS/CSS/图片且未渲染，分值与抓取响应时间不能代表海外真实打开速度或 Core Web Vitals。"
+      },
+      {
+        "label": "SEO",
+        "score": 5.7,
+        "max_score": null,
+        "caveat": "对应元数据与标题结构命中，不代表实际收录、排名或搜索流量。"
+      },
+      {
+        "label": "Security",
+        "score": 5.5,
+        "max_score": null,
+        "caveat": "为响应头与协议配置检查结果，不构成已发生入侵、泄露或必须更换平台的结论。"
+      },
+      {
+        "label": "Accessibility",
+        "score": 3.5,
+        "max_score": null,
+        "caveat": "为标记层规则命中，未做真实辅助技术或买家操作测试。"
+      },
+      {
+        "label": "Best Practices",
+        "score": 4.1,
+        "max_score": null,
+        "caveat": "原报告未提供该维度逐条明细的完整对照，此处仅记录分值。"
+      }
+    ],
+    "notes": [
+      {
+        "label": "安全响应头与后端版本披露",
+        "fact": "HSTS 与 CSP 各 47 次未设置（Critical），X-Powered-By 披露 'PHP/5.6.40' 命中 46 次，X-Content-Type-Options、Permissions-Policy 等亦未设置。",
+        "significance": "属于配置层维护项，建议由运维核实实际运行版本后统一加固；响应头披露不等于已验证的运行版本，也不代表已发生入侵或数据泄露。"
+      },
+      {
+        "label": "TLS 协议与证书",
+        "fact": "Let's Encrypt 证书有效至 2027-01-28（检测时剩余 64.8 天），系统 CA 信任；服务端仍支持 TLSv1.0 与 TLSv1.1。",
+        "significance": "HTTPS 基础可用是正面事实；旧协议保留属维护项，建议在 CDN 侧关闭并建立证书续期提醒，与获客效果无直接因果证据。"
+      },
+      {
+        "label": "首页两处资源 404",
+        "fact": "/templates/sqv/images/video/1.mp4 与 /cdn-cgi/l/email-protection 均返回 404，来源页均为首页。",
+        "significance": "资源级失效，需人工确认首页视频位与邮箱展示的实际表现；不能据此断言首页功能失败或收不到询盘。"
+      },
+      {
+        "label": "表单与页面标记",
+        "fact": "表单字段缺标签命中量大（五个留言字段各 46 次），图片 alt 243 通过/35 警告，缺 html lang（Critical 1）、缺 main landmark、5 处未命名链接按钮。",
+        "significance": "多为全站模板可一次性修复的标记问题，与询盘填写体验相关，但未做真实辅助技术或买家操作测试。"
+      },
+      {
+        "label": "异常链接与分享参数",
+        "fact": "/vr 存在 href https://vr-solutions/（无顶级域主机，被跳过）；首页存在 backlinks-exchange.net、metinfo.cn、dianziyouxi.net、wawaji.co 等导出链接；news/626 的 Pinterest 分享参数为 url=:443/news/626-en.html。",
+        "significance": "属需人工确认的链接卫生问题，可能影响分享落点与对外专业印象；未访问这些外链，不判定其失效，也不推断搜索惩罚。"
+      },
+      {
+        "label": "抓取响应与缓存口径",
+        "fact": "HTML 抓取响应约 0.44–0.94 秒（首页 0.935 秒），HTML 页 Cache 记为 0，sitemap.xml 为 2592000；Performance 分项 9.3。",
+        "significance": "仅为禁用 JS/CSS/图片条件下的服务端响应参考，不代表海外真实打开速度或页面完整加载体验；HTML 不缓存可作为后续性能优化线索。"
+      }
+    ],
+    "not_checked": [
+      "真实浏览器渲染、移动端与视觉表现（本次禁用 JavaScript/CSS/字体/图片）",
+      "页面完整正文、规格参数、产品图片与视频内容",
+      "/about 的 301 目标 /about/ 及 50 条 URL 上限之外的所有页面",
+      "wa.me、m.me、社交与分享外链的实际可用性（按 Not allowed host 跳过）",
+      "表单提交、邮件送达、收件箱判定与业务响应",
+      "搜索收录、排名、流量、竞品与询盘/CRM 数据",
+      "海外真实访问速度、Core Web Vitals 与完整加载时间",
+      "企业资质、案例客户与合作伙伴的真实性",
+      "后端 PHP 实际运行版本与服务器加固现状"
+    ]
+  },
+  "evidence": [
+    {
+      "id": "E01",
+      "evidence_id": "E01",
+      "fact": "50 条受检 URL 中 47 条 200（46 个 HTML + 1 个 sitemap.xml）、1 条 301、2 条 404；HTML 抓取响应时间约 0.44–0.94 秒（首页 0.935 秒），HTML 页 Cache 记为 0，sitemap.xml 记为 2592000。",
+      "url": "https://jjgamemachine.com/",
+      "raw_value": "rows=50；200×47（含 XML 1）；301×1；404×2；首页 Time 0.935s / Size 82714 / Cache 0",
+      "denominator": 50,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "TABLE visited-urls id=tfc1053（50 行）逐行状态与 Time (s)/Cache 字段复算"
+    },
+    {
+      "id": "E02",
+      "evidence_id": "E02",
+      "fact": "原报告给出总体 5.7（Fair），分项 Performance 9.3、SEO 5.7、Security 5.5、Accessibility 3.5、Best Practices 4.1，未标注满分刻度。",
+      "url": null,
+      "raw_value": "{\"overall\": 5.7, \"label\": \"Fair\", \"Performance\": 9.3, \"SEO\": 5.7, \"Security\": 5.5, \"Accessibility\": 3.5, \"Best Practices\": 4.1}",
+      "denominator": null,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "QUALITY SCORES 行"
+    },
+    {
+      "id": "E03",
+      "evidence_id": "E03",
+      "fact": "46 个受检 HTML 页中 37 行 H1 记为 Missing H1；其中 19 个 /product/list-*-en.html 产品类目页全部为 Missing H1；有 H1 的仅 8 个产品详情页与 /vr。",
+      "url": "https://jjgamemachine.com/product/list-vr-en.html",
+      "raw_value": "list-vr / list-42 / list-43 / list-arcade-machine 等 19 个类目页 H1=\"Missing H1\"；全表 Missing H1 共 37 行",
+      "denominator": 46,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "TABLE seo id=t6ce234（46 行）H1 列逐行复核"
+    },
+    {
+      "id": "E04",
+      "evidence_id": "E04",
+      "fact": "23 个受检页共用同一段公司简介式描述；另有 3 个页面描述为空（SEO 表对应 /contact、/vr、/why-us）。",
+      "url": "https://jjgamemachine.com/product/",
+      "raw_value": "Count=23: \"Guangzhou SQV Animation Co., Ltd, Experts in Manufacturing and Exporting Arcade game machines,Crane game Machines,indoor and out door amusement.\"；Count=3: \"\"",
+      "denominator": 46,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "TABLE non-unique-descriptions id=t87e1ff（2 行）"
+    },
+    {
+      "id": "E05",
+      "evidence_id": "E05",
+      "fact": "19 个产品类目页中，9 个（Interactive Sports Projects、interactive projection、Amusement rides、Arcade machine、Electric car、Entertainment machine、Kid racing、Kid shooting、Music machine）沿用公司简介描述；另 10 个已有类目专属描述，如 Claw machine 使用 crane/claw/gift/prize 主题文案。",
+      "url": "https://jjgamemachine.com/product/list-claw-machine-en.html",
+      "raw_value": "9 个类目页 Description=公司简介默认值；10 个专属，例：\"Crane Games, Claw Games, Crane Merchandisers, Claw Machines, Crane Machines, Crane Vending Machines and Claw Crane Vending Machines for sale\"",
+      "denominator": 19,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "TABLE seo id=t6ce234 中 19 个 /product/list-* 行 Description 列分组复算"
+    },
+    {
+      "id": "E06",
+      "evidence_id": "E06",
+      "fact": "本次抽到的 6 个客户案例详情页标题完全相同，均为 \"With the customer photo-...\"，描述同为公司简介默认值，H1 均缺失。",
+      "url": "https://jjgamemachine.com/case/7-en.html",
+      "raw_value": "Count=6, Title=\"With the customer photo-Guangzhou SQV Amusement Equipment Co., Ltd. - Arcade Machines & Amusement Equipments for sale\"",
+      "denominator": 6,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "TABLE non-unique-titles id=t594f61（1 行）+ TABLE seo 中 /case/2、3、4、7、8、9 行"
+    },
+    {
+      "id": "E07",
+      "evidence_id": "E07",
+      "fact": "8 个产品详情页拥有与型号一致的唯一 H1、差异化描述与关键词，例如 Godzilla VR rotating chairs 描述为 9D VR 双人旋转椅，electric_drift_cart 描述含漂移、360 度旋转、刹车等卖点。",
+      "url": "https://jjgamemachine.com/product/Godzilla_VR_rotating_chairs-en.html",
+      "raw_value": "H1=\"Godzilla VR rotating chairs\"；Description=\"9D VR rotating chairs double player Virtual Reality Game\"；Keywords=\"Virtual Reality games,Godzilla,double player,9D VR rotating chairs,factory price,arcade game machine\"",
+      "denominator": 46,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "TABLE seo id=t6ce234 中 8 个 /product/*-en.html 详情行（Title/H1/Description/Keywords）"
+    },
+    {
+      "id": "E08",
+      "evidence_id": "E08",
+      "fact": "/vr 页标题结构已具备完整的 VR 开店招商叙事：Open a VR arcade in your city、WHY VR BUSINESS?（market size / success case / advantages）、HOW CAN I MAKE A PROFIT?、VR MACHINES（8 个机型）、WHY SQV ANIM VR?（Experienced / Innovative R&D team / Certificates / OEM Services / Guidance）、OUR PARTNERS、Contact us（Reply within 12 hours）。",
+      "url": "https://jjgamemachine.com/vr",
+      "raw_value": "<h2> Open a VR arcade in your city <h1> WHY VR BUSINESS? <h3> market size <h3> success case ... <h2> HOW CAN I MAKE A PROFIT? ... <h3> Certificates <h3> OEM Services ... <h2> Contact us <h3> Reply within 12 hours",
+      "denominator": null,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "TABLE seo-headings id=teeb9a7 行 URL=/vr（Count 26 / Errors 5）"
+    },
+    {
+      "id": "E09",
+      "evidence_id": "E09",
+      "fact": "/vr 这一内容最完整的招商页，Title 仅为 \"Vr-\" 加通用公司后缀，Description 与 Keywords 均为空。",
+      "url": "https://jjgamemachine.com/vr",
+      "raw_value": "Title=\"Vr-Guangzhou SQV Amusement Equipment Co., Ltd. - Arcade game mahcines, Crane Came Machines\"；Description=\"\"；Keywords=\"\"",
+      "denominator": 46,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "TABLE seo id=t6ce234 行 URL=/vr"
+    },
+    {
+      "id": "E10",
+      "evidence_id": "E10",
+      "fact": "Interactive Sports Projects 类目页标题结构列出 9 个具体项目名（Olympic shooting、Indoor Interactive football、Interactive archery、Indoor simulated bowling 等，每个名称在提取结果中出现两次，Count 19 / Errors 19），但无 H1，描述仍为公司简介默认值。",
+      "url": "https://jjgamemachine.com/product/list-42-en.html",
+      "raw_value": "Title=\"Interactive Sports Projects-Products-...\"；H1=\"Missing H1\"；\"<h3> Products <h3> Olympic shooting ... <h3> Indoor Interactive football Interactive sports projects\"（Count 19, Errors 19）",
+      "denominator": 46,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "TABLE seo id=t6ce234 与 TABLE seo-headings id=teeb9a7 行 URL=/product/list-42-en.html"
+    },
+    {
+      "id": "E11",
+      "evidence_id": "E11",
+      "fact": "产品详情页均有 \"Leave a Message\" 留言区与 \"Exclusive customer service\"、\"Related Products\" 板块；其中两个页面把板块标题写成 \"Game Contect\"，另两个页面为 \"Game content\"，同一模板英文拼写不一致。",
+      "url": "https://jjgamemachine.com/product/360%C2%B0_Kingkong_VR_2-en.html",
+      "raw_value": "<h1> 360° Kingkong VR 2 <h3> Exclusive customer service <h3> Related Products <h3> Game Contect <h2> Leave a Message（Count 5, Errors 3）",
+      "denominator": 8,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "TABLE seo-headings id=teeb9a7 行 /product/360%C2%B0_Kingkong_VR_2-en.html、/product/Single_player_VR_Jumping_chair-en.html、/product/Godzilla_VR_rotating_chairs-en.html"
+    },
+    {
+      "id": "E12",
+      "evidence_id": "E12",
+      "fact": "留言表单字段 message-name、message-text、message-address、message-phone、message-email 各命中 46 次缺少标签，站内搜索框 name=\"q\" 同样命中 46 次；来源列表被截断为 URL 1–URL 5，无法逐页定位。",
+      "url": null,
+      "raw_value": "id=\"message-name\" Occurs=46；id=\"message-text\" Occurs=46；id=\"message-address\" Occurs=46；id=\"message-phone\" Occurs=46；id=\"message-email\" Occurs=46；name=\"q\" Occurs=46",
+      "denominator": 46,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "TABLE missing-form-labels id=tceecf7（10 行）"
+    },
+    {
+      "id": "E13",
+      "evidence_id": "E13",
+      "fact": "页面中确实存在多个可读的销售电话文本（+86 130 7679 8682、+86 130 4807 5082 各命中 37 次），但以纯文本呈现、未做成一键拨号；+8618818540275 明确出现在 /contact 及 double_player_rocket、360° Kingkong 两个产品详情页。",
+      "url": "https://jjgamemachine.com/contact",
+      "raw_value": "\"+86 130 7679 8682\" Occurs=37；\"+86 130 4807 5082\" Occurs=37；\"+8618818540275\" Occurs=3，Affected URLs: /contact、/product/double_player_rocket_VR_machine-en.html、/product/360%C2%B0_Kingkong_VR_2-en.html",
+      "denominator": null,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "TABLE non-clickable-phone-numbers id=t36d038（10 行）"
+    },
+    {
+      "id": "E14",
+      "evidence_id": "E14",
+      "fact": "首页含 wa.me/8613048075082、wa.me/8613076798682 与 m.me/gzsqvanim，360° Kingkong 产品页含 wa.me/8618818540275；这些主机按 Not allowed host 被跳过，未发起请求，可用性未验证。",
+      "url": "https://jjgamemachine.com/",
+      "raw_value": "https://wa.me/8613048075082；https://wa.me/8613076798682；https://m.me/gzsqvanim；https://wa.me/8618818540275（Found on /product/360%C2%B0_Kingkong_VR_2-en.html）；skipped: wa.me Unique URLs=3",
+      "denominator": null,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "TABLE external-urls id=t4d4122（wa.me / m.me 行）+ TABLE skipped-summary id=t4c868c（wa.me、m.me 行）"
+    },
+    {
+      "id": "E15",
+      "evidence_id": "E15",
+      "fact": "首页引用的两个资源返回 404：视频文件 /templates/sqv/images/video/1.mp4 与 Cloudflare 邮箱保护地址 /cdn-cgi/l/email-protection；两者的 Found at URL 均为首页。",
+      "url": "https://jjgamemachine.com/",
+      "raw_value": "404 https://jjgamemachine.com/templates/sqv/images/video/1.mp4（Found at /）；404 https://jjgamemachine.com/cdn-cgi/l/email-protection（Found at /）",
+      "denominator": 2,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "TABLE 404 id=t39ba1b（2 行）+ TABLE visited-urls 对应行"
+    },
+    {
+      "id": "E16",
+      "evidence_id": "E16",
+      "fact": "Strict-Transport-Security 与 Content-Security-Policy 各命中 47 次未设置（Critical）；X-Powered-By 披露 'PHP/5.6.40' 命中 46 次；X-Content-Type-Options、Permissions-Policy 等同样未设置。以上为响应头记录，不等于已验证的后端运行版本或已发生的安全事件。",
+      "url": null,
+      "raw_value": "HSTS Critical=47；CSP Critical=47；X-Powered-By 'PHP/5.6.40' Critical=46（明细表掩码为 'PHP/5.6.***'）",
+      "denominator": null,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "TABLE security id=t589f15 与 TABLE security-headers id=tfd94a3"
+    },
+    {
+      "id": "E17",
+      "evidence_id": "E17",
+      "fact": "证书由 Let's Encrypt 签发，主体 CN=jjgamemachine.com，有效期 2026-10-30 至 2027-01-28（检测时剩余 64.8 天），被系统 CA 信任；服务端同时支持 TLSv1.0、TLSv1.1、TLSv1.2、TLSv1.3；DNS 解析指向 Cloudflare 地址段。",
+      "url": "https://jjgamemachine.com/",
+      "raw_value": "Issuer C=US, O=Let's Encrypt, CN=YE1；Valid to Jan 28 09:30:35 2027 GMT (VALID still for 64.8 day(s))；Supported protocols TLSv1.0, TLSv1.1, TLSv1.2, TLSv1.3；Trusted by system CA store",
+      "denominator": null,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "SSL TLS INFO / DNS info 区块"
+    },
+    {
+      "id": "E18",
+      "evidence_id": "E18",
+      "fact": "/vr 页存在 href https://vr-solutions/（被当作外部主机跳过，主机名不含顶级域）；首页存在指向 www.backlinks-exchange.net/free-google-seo、www.metinfo.cn、dianziyouxi.net、wawaji.co 的导出链接；news/626 的 Pinterest 分享链接参数写成 url=:443/news/626-en.html，缺少协议与主机。",
+      "url": "https://jjgamemachine.com/vr",
+      "raw_value": "https://vr-solutions/（Found on /vr）；https://www.backlinks-exchange.net/free-google-seo（Found on /）；https://pinterest.com/pin/create/button/?url=:443/news/626-en.html&…",
+      "denominator": null,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "TABLE external-urls id=t4d4122（vr-solutions、backlinks-exchange、pinterest 行）+ TABLE skipped-summary（vr-solutions 行）"
+    },
+    {
+      "id": "E19",
+      "evidence_id": "E19",
+      "fact": "图片 alt 检查 243 条通过、35 条警告；表单标签 4 条通过、14 条警告；缺少 html lang 属性记为 Critical 1；缺少 main landmark 警告 1；未命名链接/按钮 400 条通过、5 条警告。",
+      "url": null,
+      "raw_value": "Missing image alt attributes OK=243 / Warning=35；Missing form labels OK=4 / Warning=14；Missing html lang attribute Critical=1；Unnamed links/buttons OK=400 / Warning=5",
+      "denominator": null,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "TABLE accessibility id=t578f06（6 行）+ TABLE missing-image-alt-attributes id=taa2761"
+    },
+    {
+      "id": "E20",
+      "evidence_id": "E20",
+      "fact": "首页标题后缀拼写为 \"Arcade game mahcines, Crane Came Machines\"（machines/Crane 拼写错误），且标题中的公司名为 Guangzhou SQV Amusement Equipment Co., Ltd.，描述中的公司名为 Guangzhou SQV Animation Co., Ltd，两种品牌表述并存；首页 H1 缺失。",
+      "url": "https://jjgamemachine.com/",
+      "raw_value": "Title=\"Guangzhou SQV Amusement Equipment Co., Ltd. - Arcade game mahcines, Crane Came Machines\"；Description=\"Guangzhou SQV Animation Co., Ltd, Experts in Manufacturing and Exporting...\"；H1=\"Missing H1\"",
+      "denominator": 46,
+      "source_file": "jjgamemachine.source.html",
+      "source_location": "TABLE seo id=t6ce234 行 URL=/（并见 /contact、/vr、/why-us 同后缀）"
+    }
+  ]
+}
